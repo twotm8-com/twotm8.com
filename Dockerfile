@@ -12,7 +12,7 @@ ENV CI "true"
 RUN curl -fL -o /bin/cs https://github.com/coursier/launchers/raw/master/coursier && \
     chmod +x /bin/cs 
 
-RUN cs launch com.indoorvivants.vcpkg:scala-vcpkg_3:0.0.8 -- install libpq openssl libdidn2 -v
+RUN cs launch com.indoorvivants.vcpkg:scala-vcpkg_3:0.0.8 -- install libpq openssl libidn2 -v
 
 COPY . /sources
 
