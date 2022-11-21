@@ -92,6 +92,7 @@ lazy val app =
       scalaVersion := Versions.Scala,
       vcpkgRootInit := com.indoorvivants.vcpkg.VcpkgRootInit.SystemCache(),
       vcpkgDependencies := Set("libpq", "openssl", "libidn2"),
+      vcpkgManifest := (ThisBuild / baseDirectory).value / "vcpkg.json",
       libraryDependencies ++= Seq(
         "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto % Test,
         "com.github.lolgab" %%% "snunit-tapir" % Versions.SNUnit,
@@ -99,7 +100,7 @@ lazy val app =
         "com.lihaoyi" %%% "upickle" % Versions.upickle,
         "com.outr" %%% "scribe" % Versions.scribe
       ),
-      nativeConfig ~= (_.withEmbedResources(true).withDump(true))
+      nativeConfig ~= (_.withEmbedResources(true))
     )
 
 lazy val bindings =

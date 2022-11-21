@@ -1,12 +1,20 @@
 FROM eclipse-temurin:17-focal as builder
 
 COPY scripts /scripts
+
 RUN /scripts/setup-debian.sh
 
 ENV LLVM_BIN "/usr/lib/llvm-13/bin"
 ENV CC "/usr/lib/llvm-13/bin/clang"
 ENV SN_RELEASE "fast"
 ENV CI "true"
+
+RUN curl -fL -o /bin/cs https://github.com/coursier/launchers/raw/master/coursier && \
+    chmod +x /bin/cs && cs --version
+
+COPY vcpkg.json /sources/
+
+RUN cs launch com.indoorvivants.vcpkg:scala-vcpkg_3:0.0.8 -- install-manifest /sources/vcpkg.json -v
 
 COPY . /sources
 
