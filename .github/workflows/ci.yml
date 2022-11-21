@@ -70,6 +70,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
       - name: Build on Fly.io
         run: "flyctl deploy --build-only -c fly-production.toml"
         env:
