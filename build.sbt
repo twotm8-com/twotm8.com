@@ -287,7 +287,7 @@ updateUnitConfiguration := {
     create_result.contains("Reconfiguration done"),
     s"Unit reconfiguration didn't succeed, returning `$create_result`"
   )
-  val reload_result = process.Process(cmd_restart).!!
+  val reload_result = run(process.Process(cmd_restart))
   assert(
     reload_result.contains("success"),
     s"Unit reload didn't succeed, returning `$reload_result`"
