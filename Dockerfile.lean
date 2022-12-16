@@ -1,4 +1,4 @@
-FROM nginx/unit:1.28.0-minimal
+FROM nginx/unit:1.29.0-minimal
 
 COPY build/twotm8 /usr/bin/twotm8
 COPY build /www/static
