@@ -269,11 +269,11 @@ updateUnitConfiguration := {
 
   val configJson = writeConfig.value
 
-  val sudo = if (sys.env.contains("USE_SUDO")) "sudo" :: Nil else Nil
+  val sudo = sys.env.get("USE_SUDO").map(_ => "sudo").toSeq
 
-  val cmd_config = sudo ++ List("unitc", "PUT", "/config")
+  val cmd_config = sudo ++ Seq("unitc", "PUT", "/config")
   val cmd_restart =
-    sudo ++ List("unitc", "GET", "/control/applications/app/restart")
+    sudo ++ Seq("unitc", "GET", "/control/applications/app/restart")
 
   def run(p: process.ProcessBuilder) = {
     val sb = new StringBuilder
