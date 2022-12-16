@@ -267,27 +267,23 @@ lazy val updateUnitConfiguration = taskKey[Unit]("")
 updateUnitConfiguration := {
   sLog.value.info(buildBackend.value.toString)
 
-  val configJson = writeConfig.value
+  val configJson = writeConfig.value.toString
 
-  val sudo = sys.env.get("USE_SUDO").map(_ => "sudo").toSeq
-
-  val cmd_config = sudo ++ Seq("unitc", "PUT", "/config")
-  val cmd_restart =
-    sudo ++ Seq("unitc", "GET", "/control/applications/app/restart")
-
-  def run(p: process.ProcessBuilder) = {
+  def run(command: Seq[String]) = {
     val sb = new StringBuilder
-    p.!(process.ProcessLogger(sb ++= _))
+    process.Process(command).!(process.ProcessLogger(sb ++= _))
     sb.toString
   }
 
-  val create_result =
-    run(process.Process(configJson) #> process.Process(cmd_config))
+  val sudo = sys.env.get("USE_SUDO").map(_ => "sudo").toSeq
+
+
+  val create_result = run(sudo ++ Seq("unitc", "PUT", configJson, "/config"))
   assert(
     create_result.contains("Reconfiguration done"),
     s"Unit reconfiguration didn't succeed, returning `$create_result`"
   )
-  val reload_result = run(process.Process(cmd_restart))
+  val reload_result = run(sudo ++ Seq("unitc", "GET", "/control/applications/app/restart"))
   assert(
     reload_result.contains("success"),
     s"Unit reload didn't succeed, returning `$reload_result`"
