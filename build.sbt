@@ -75,9 +75,12 @@ lazy val set =
   tests
     .native(Versions.Scala)
     .dependsOn(app.native(Versions.Scala))
+    .enablePlugins(VcpkgNativePlugin)
     .settings(
+      vcpkgDependencies := VcpkgDependencies("openssl"),
       libraryDependencies +=
-        "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto % Test
+        "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto % Test,
+      nativeConfig ~= { _.withIncrementalCompilation(true) }
     )
 
 lazy val app =
@@ -85,14 +88,14 @@ lazy val app =
     .in(file("app"))
     .nativePlatform(Seq(Versions.Scala))
     .dependsOn(bindings, shared)
-    .enablePlugins(VcpkgPlugin)
+    .enablePlugins(VcpkgNativePlugin)
     .settings(environmentConfiguration)
-    .settings(vcpkgNativeConfig())
     .settings(
       scalaVersion := Versions.Scala,
       vcpkgRootInit := com.indoorvivants.vcpkg.VcpkgRootInit.SystemCache(),
-      vcpkgDependencies := Set("libpq", "openssl", "libidn2"),
-      vcpkgManifest := (ThisBuild / baseDirectory).value / "vcpkg.json",
+      vcpkgDependencies := VcpkgDependencies(
+        (ThisBuild / baseDirectory).value / "vcpkg.json"
+      ),
       libraryDependencies ++= Seq(
         "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto % Test,
         "com.github.lolgab" %%% "snunit-tapir" % Versions.SNUnit,
@@ -100,7 +103,8 @@ lazy val app =
         "com.lihaoyi" %%% "upickle" % Versions.upickle,
         "com.outr" %%% "scribe" % Versions.scribe
       ),
-      nativeConfig ~= (_.withEmbedResources(true))
+      Compile / resources ~= {_.filter(_.ext == "sql")},
+      nativeConfig ~= (_.withEmbedResources(true).withIncrementalCompilation(true))
     )
 
 lazy val bindings =
@@ -113,34 +117,35 @@ lazy val bindings =
       resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
       vcpkgRootInit := com.indoorvivants.vcpkg.VcpkgRootInit.SystemCache(),
       // Generate bindings to Postgres main API
-      vcpkgDependencies := Set("openssl"),
+      vcpkgDependencies := VcpkgDependencies("openssl"),
       Compile / bindgenBindings ++= Seq(
-        Binding(
-          (ThisBuild / baseDirectory).value / "bindings" / "openssl-amalgam.h",
-          "openssl",
-          cImports = List("openssl/sha.h", "openssl/evp.h"),
-          clangFlags = List("-I" + vcpkgConfigurator.value.includes("openssl"))
-        )
+        Binding
+          .builder(
+            (ThisBuild / baseDirectory).value / "bindings" / "openssl-amalgam.h",
+            "openssl"
+          )
+          .withCImports(List("openssl/sha.h", "openssl/evp.h"))
+          .addClangFlag("-I" + vcpkgConfigurator.value.includes("openssl"))
+          .build
       )
     )
-    .settings(vcpkgNativeConfig())
 
 addCommandAlias("integrationTests", "tests3/test")
 
 val Versions = new {
-  val Scala = "3.2.1"
+  val Scala = "3.2.2"
 
-  val SNUnit = "0.2.4"
+  val SNUnit = "0.3.0"
 
-  val Tapir = "1.2.2"
+  val Tapir = "1.2.10"
 
   val upickle = "2.0.0"
 
-  val scribe = "3.10.5"
+  val scribe = "3.11.1"
 
   val Laminar = "0.14.5"
 
-  val scalajsDom = "2.3.0"
+  val scalajsDom = "2.4.0"
 
   val waypoint = "0.5.0"
 
@@ -154,7 +159,7 @@ val Versions = new {
 
   val weaver = "0.8.1"
 
-  val Http4s = "0.23.16"
+  val Http4s = "0.23.18"
 
   val jwt = "9.1.2"
 }
@@ -352,66 +357,3 @@ buildFrontend := {
 
   IO.copyFile(js, destination / "frontend.js")
 }
-
-def vcpkgNativeConfig(rename: String => String = identity) = Seq(
-  nativeConfig := {
-    import com.indoorvivants.detective.Platform
-    val configurator = vcpkgConfigurator.value
-    val conf = nativeConfig.value
-    val deps = vcpkgDependencies.value.toSeq.map(rename)
-
-    val files = deps.map(d => configurator.files(d))
-
-    val compileArgsApprox = files.flatMap { f =>
-      List("-I" + f.includeDir.toString)
-    }
-    val linkingArgsApprox = files.flatMap { f =>
-      List("-L" + f.libDir) ++ f.staticLibraries.map(_.toString)
-    }
-
-    import scala.util.control.NonFatal
-
-    def updateLinkingFlags(current: Seq[String], deps: String*) =
-      try {
-        configurator.pkgConfig.updateLinkingFlags(
-          current,
-          deps*
-        )
-      } catch {
-        case NonFatal(exc) =>
-          linkingArgsApprox
-      }
-
-    def updateCompilationFlags(current: Seq[String], deps: String*) =
-      try {
-        configurator.pkgConfig.updateCompilationFlags(
-          current,
-          deps*
-        )
-      } catch {
-        case NonFatal(exc) =>
-          compileArgsApprox
-      }
-
-    val arch64 =
-      if (
-        Platform.arch == Platform.Arch.Arm && Platform.bits == Platform.Bits.x64
-      )
-        List("-arch", "arm64")
-      else Nil
-
-    conf
-      .withLinkingOptions(
-        updateLinkingFlags(
-          conf.linkingOptions ++ arch64,
-          deps*
-        )
-      )
-      .withCompileOptions(
-        updateCompilationFlags(
-          conf.compileOptions ++ arch64,
-          deps*
-        )
-      )
-  }
-)

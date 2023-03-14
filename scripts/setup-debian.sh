@@ -6,9 +6,9 @@ apt update && apt install -y curl && \
     curl -Lo llvm.sh https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
     apt install -y lsb-release wget software-properties-common gnupg autopoint libtool && \
-    ./llvm.sh 13 && \
+    ./llvm.sh 14 && \
     apt update && \
-    apt install -y zip unzip tar make cmake autoconf pkg-config libclang-13-dev git && \
+    apt install -y zip unzip tar make cmake autoconf pkg-config libclang-14-dev git && \
     # install Unit, OpenSSL and Unit development headers
     curl --output /usr/share/keyrings/nginx-keyring.gpg  \
       https://unit.nginx.org/keys/nginx-keyring.gpg && \
