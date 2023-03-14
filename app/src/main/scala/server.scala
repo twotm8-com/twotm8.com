@@ -39,6 +39,7 @@ object Main:
         writer = scribe.writer.SystemErrWriter,
         outputFormat = scribe.output.format.ANSIOutputFormat
       )
+      .withMinimumLevel(Level.Debug)
       .replace()
 
     Zone { implicit z =>

@@ -75,7 +75,7 @@ lazy val set =
   tests
     .native(Versions.Scala)
     .dependsOn(app.native(Versions.Scala))
-    .enablePlugins(VcpkgPlugin)
+    .enablePlugins(VcpkgNativePlugin)
     .settings(
       vcpkgDependencies := VcpkgDependencies("openssl"),
       libraryDependencies +=
@@ -103,7 +103,8 @@ lazy val app =
         "com.lihaoyi" %%% "upickle" % Versions.upickle,
         "com.outr" %%% "scribe" % Versions.scribe
       ),
-      nativeConfig ~= (_.withEmbedResources(true))
+      Compile / resources ~= {_.filter(_.ext == "sql")},
+      nativeConfig ~= (_.withEmbedResources(true).withIncrementalCompilation(true))
     )
 
 lazy val bindings =

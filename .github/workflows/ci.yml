@@ -15,7 +15,7 @@ jobs:
     name: Build
     runs-on: ubuntu-20.04
     env:
-      LLVM_BIN: /usr/lib/llvm-13/bin
+      LLVM_BIN: /usr/lib/llvm-14/bin
     steps:
       - uses: actions/checkout@v3
 
