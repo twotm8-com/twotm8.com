@@ -1,15 +1,15 @@
 package twotm8
 package tests.integration
 
-import sttp.tapir.*
-import sttp.tapir.client.http4s.Http4sClientInterpreter
-
-import org.http4s.client.*
+import cats.effect.IO
+import pdi.jwt.JwtOptions
 import org.http4s.*
 import org.http4s.ember.client.*
 import cats.effect.*
 import pdi.jwt.JwtOptions
 import twotm8.api.ErrorInfo
+
+import sttp.tapir.client.http4s.Http4sClientInterpreter
 
 object AuthIntegrationTest extends BaseTest:
   group("Registration") {

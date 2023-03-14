@@ -19,16 +19,15 @@ class App(db: DB)(using z: Zone, config: Settings):
   }
 
   def login(nickname: Nickname, plaintextPassword: Password): Option[Token] =
-    db.get_credentials(nickname) match
-      case None => None
-      case Some(authorId -> hashedPassword) =>
-        val List(salt, hash) = hashedPassword.ciphertext.split(":").toList
-        val expected =
-          plaintextPassword.process(pl => OpenSSL.sha256(salt + ":" + pl))
+    db.get_credentials(nickname).flatMap { case authorId -> hashedPassword =>
+      val List(salt, hash) = hashedPassword.ciphertext.split(":").toList
+      val expected =
+        plaintextPassword.process(pl => OpenSSL.sha256(salt + ":" + pl))
 
-        Option.when(expected.equalsIgnoreCase(hash))(
-          Auth.token(authorId)
-        )
+      Option.when(expected.equalsIgnoreCase(hash))(
+        Auth.token(authorId)
+      )
+    }
   end login
 
   def get_thought_leader(id: AuthorId): Option[ThoughtLeader] =

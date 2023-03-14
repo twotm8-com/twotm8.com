@@ -1,7 +1,6 @@
 package twotm8 
 package tests.integration
 
-import sttp.tapir.*
 import sttp.tapir.client.http4s.Http4sClientInterpreter
 
 import org.http4s.client.*
@@ -9,6 +8,8 @@ import org.http4s.*
 import org.http4s.ember.client.*
 import cats.effect.*
 import cats.syntax.all.*
+
+import sttp.tapir.PublicEndpoint
 
 enum TestGroup:
   case None
