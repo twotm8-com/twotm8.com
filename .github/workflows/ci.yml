@@ -73,10 +73,8 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Build on Fly.io
-        run: "flyctl deploy --build-only -c fly-production.toml"
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Build 
+        run: docker build . -t twotm8
 
   mergify_build_summary:
     name: Build summary
