@@ -38,15 +38,15 @@ app:
     ENV CI "true"
 
     RUN sbt clean buildApp
-    SAVE ARTIFACT build/twotm8 
-    SAVE ARTIFACT build/static
+    SAVE ARTIFACT build/twotm8 /build/twotm8
+    SAVE ARTIFACT build/static /build/static
 
 docker:
     FROM nginx/unit:1.29.1-minimal
     ARG ver=latest
 
     COPY +app/build/twotm8 /usr/bin/twotm8
-    COPY +app/build/static /www/static
+    COPY +app/build/static/* /www/static/
     COPY config.json /docker-entrypoint.d/config.json
 
     EXPOSE 8080
