@@ -64,18 +64,6 @@ jobs:
         run: |
           sudo cat logs/*.log
 
-  docker-build:
-    name: Docker build
-    runs-on: ubuntu-20.04
-    if: "!(startsWith(github.ref, 'refs/tags/v') || (github.ref == 'refs/heads/main'))"
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Build 
-        run: docker build . -t twotm8
-
   earthly:
     runs-on: ubuntu-latest
     env:
@@ -86,12 +74,12 @@ jobs:
         version: v0.7.2
     - uses: actions/checkout@v2
     - name: Run build
-      run: earthly +app
+      run: earthly --ci +docker
 
   mergify_build_summary:
     name: Build summary
     runs-on: ubuntu-latest
-    needs: [build, docker-build]
+    needs: [build]
     steps:
       - name: I only exist to please Mergify :(
         run: echo "It's a sad existence but necessary"
