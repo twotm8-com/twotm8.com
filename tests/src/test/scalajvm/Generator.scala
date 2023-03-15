@@ -1,5 +1,4 @@
-package twotm8
-package tests.integration
+package twotm8.tests.integration
 
 import cats.effect.*
 import cats.effect.std.*
@@ -26,7 +25,6 @@ case class Generator private (random: Random[IO], uuid: UUIDGen[IO]):
       chars <- string(lengthRange)
       str = nt.getClass.getSimpleName.toString + "-" + chars
     yield nt(str.take(lengthRange.end))
-
 end Generator
 
 object Generator:

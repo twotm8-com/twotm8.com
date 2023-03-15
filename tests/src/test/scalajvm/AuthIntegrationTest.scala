@@ -98,10 +98,11 @@ object AuthIntegrationTest extends BaseTest:
         nickname <- probe.generator.str(Nickname, 8 to 15)
         password <- probe.generator.string(8 to 15).map(Password(_))
 
-        result <- probe.execute(
-          endpoints.login,
-          api.Payload.Login(nickname, password)
-        )
+        result <-
+          probe.execute(
+            endpoints.login,
+            api.Payload.Login(nickname, password)
+          )
       yield expect(result == Left(ErrorInfo.BadRequest("Invalid credentials")))
     }
 

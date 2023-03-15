@@ -76,6 +76,18 @@ jobs:
       - name: Build 
         run: docker build . -t twotm8
 
+  earthly:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: 1
+    steps:
+    - uses: earthly/actions/setup-earthly@v1
+      with:
+        version: v0.7.2
+    - uses: actions/checkout@v2
+    - name: Run build
+      run: earthly +app
+
   mergify_build_summary:
     name: Build summary
     runs-on: ubuntu-latest
