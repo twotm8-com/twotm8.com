@@ -34,12 +34,13 @@ deps:
     SAVE IMAGE --push twotm8-deps
 
 app:
-    FROM deps
+    FROM +deps
     WORKDIR /sources
     COPY . /sources
 
     ENV LLVM_BIN=/usr/lib/llvm-14/bin
     ENV CC=/usr/lib/llvm-14/bin/clang
+    ENV CXX=/usr/lib/llvm-14/bin/clang++
     ENV SN_RELEASE "fast"
     ENV CI "true"
 
