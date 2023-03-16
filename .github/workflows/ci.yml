@@ -75,7 +75,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Run build
-      run: earthly --ci +docker
+      run: earthly --ci --output +docker
 
     - name: Start service in docker
       run: |
