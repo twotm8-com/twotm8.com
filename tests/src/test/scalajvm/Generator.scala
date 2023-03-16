@@ -3,6 +3,7 @@ package twotm8.tests.integration
 import cats.effect.*
 import cats.effect.std.*
 import java.util.UUID
+import twotm8.OpaqueValue
 
 case class Generator private (random: Random[IO], uuid: UUIDGen[IO]):
   def id[T](nt: OpaqueValue[T, UUID]): IO[T] =
