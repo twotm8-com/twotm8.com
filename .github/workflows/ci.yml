@@ -73,8 +73,26 @@ jobs:
       with:
         version: v0.7.2
     - uses: actions/checkout@v2
+
     - name: Run build
       run: earthly --ci +docker
+
+    - name: Start service in docker
+      run: |
+        mkdir -p logs
+        docker run -d -v $PWD/logs:/var/log -e JWT_SECRET=secret --network host twotm8:latest
+
+    - name: Integration tests 
+      run: sbt integrationTests
+      env:
+        TWOTM8_URL: http://localhost:8080
+
+    - name: Print logs
+      if: failure()
+      shell: bash
+      run: |
+        sudo cat logs/*.log
+
 
   mergify_build_summary:
     name: Build summary
