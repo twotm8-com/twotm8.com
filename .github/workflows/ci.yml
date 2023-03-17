@@ -27,6 +27,7 @@ jobs:
     - name: Start service in docker
       run: |
         mkdir -p logs
+        docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
         docker run -d -v $PWD/logs:/var/log -e JWT_SECRET=secret --network host twotm8:latest
 
     - name: Integration tests 
