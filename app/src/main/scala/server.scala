@@ -59,7 +59,10 @@ object Main:
         val app = App(DB.postgres(pool))
         val routes = api.Api(app).routes
 
-        SyncServerBuilder.build(toHandler(routes)).listen()
+        SyncServerBuilder
+          .setRequestHandler(toHandler(routes))
+          .build()
+          .listen()
       }
     }
   end main

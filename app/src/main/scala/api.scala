@@ -10,8 +10,6 @@ import java.util.UUID
 case class Authenticated[A](auth: AuthContext, value: A)
 
 class Api(app: App):
-  import ApiHelpers.{*, given}
-
   val routes = List(
     endpoints.get_me
       .serverSecurityLogic[AuthContext, Id](validateBearer)
