@@ -42,7 +42,8 @@ lazy val frontend =
         "com.raquo" %%% "waypoint" % Versions.waypoint,
         "com.softwaremill.retry" %%% "retry" % Versions.sttpRetry,
         "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.Tapir,
-        "org.scala-js" %%% "scalajs-dom" % Versions.scalajsDom
+        "org.scala-js" %%% "scalajs-dom" % Versions.scalajsDom,
+        "org.scala-js" %%% "scala-js-macrotask-executor" % Versions.scalajsMicrotaskExecutor
       )
     )
     .dependsOn(shared)
@@ -135,15 +136,15 @@ addCommandAlias("integrationTests", "tests3/test")
 val Versions = new {
   val Scala = "3.2.2"
 
-  val SNUnit = "0.4.0"
+  val SNUnit = "0.5.0"
 
-  val Tapir = "1.2.10"
+  val Tapir = "1.2.12"
 
-  val upickle = "2.0.0"
+  val upickle = "3.1.0"
 
   val scribe = "3.11.1"
 
-  val Laminar = "0.14.5"
+  val Laminar = "15.0.1"
 
   val scalajsDom = "2.4.0"
 
@@ -162,6 +163,8 @@ val Versions = new {
   val Http4s = "0.23.18"
 
   val jwt = "9.1.2"
+
+  val scalajsMicrotaskExecutor = "1.1.1"
 }
 
 lazy val environmentConfiguration = Seq(nativeConfig := {

@@ -14,6 +14,10 @@ object Page:
   case object Register extends Page
   case class Profile(authorId: String) extends Page
 
+  given ReadWriter[Page.Wall.type] = upickle.default.macroRW[Page.Wall.type]
+  given ReadWriter[Page.Login.type] = upickle.default.macroRW[Page.Login.type]
+  given ReadWriter[Page.Logout.type] = upickle.default.macroRW[Page.Logout.type]
+  given ReadWriter[Page.Register.type] = upickle.default.macroRW[Page.Register.type]
   given ReadWriter[Page.Profile] = upickle.default.macroRW[Page.Profile]
   given ReadWriter[Page] = upickle.default.macroRW[Page]
 
@@ -42,7 +46,7 @@ object Page:
     serializePage = pg => upickle.default.writeJs(pg).render(),
     deserializePage = str => upickle.default.read[Page](str)
   )(
-    $popStateEvent = L.windowEvents.onPopState,
+    $popStateEvent = L.windowEvents(_.onPopState),
     owner = L.unsafeWindowOwner
   )
 end Page

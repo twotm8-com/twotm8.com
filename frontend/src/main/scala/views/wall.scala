@@ -5,6 +5,8 @@ import com.raquo.airstream.core.Signal
 import com.raquo.laminar.api.L.*
 import com.raquo.waypoint.Router
 
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor.Implicits._
+
 import scala.scalajs.js.Date
 
 def Wall(using router: Router[Page], state: AppState): HtmlElement =

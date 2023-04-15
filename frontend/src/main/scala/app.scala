@@ -61,7 +61,7 @@ object App:
 
     div(
       Styles.container,
-      header(
+      headerTag(
         Styles.logoHeader,
         h1(Styles.logo, "Twotm8"),
         small(
@@ -87,7 +87,7 @@ object App:
   def main(args: Array[String]): Unit =
     given state: AppState = AppState.init
 
-    documentEvents.onDomContentLoaded.foreach { _ =>
+    documentEvents(_.onDomContentLoaded).foreach { _ =>
       import scalacss.ProdDefaults.*
 
       val sty = styleTag(Styles.render[String])
