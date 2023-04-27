@@ -1,0 +1,18 @@
+
+services:  
+  web:
+    image: twotm8:latest
+    ports:
+      - "8080:8080"
+    depends_on: [db]
+    environment:
+      PG_HOST: postgres
+  db:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

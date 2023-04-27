@@ -12,74 +12,41 @@ concurrency:
 
 jobs:
   build:
-    name: Build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
-      LLVM_BIN: /usr/lib/llvm-14/bin
+      FORCE_COLOR: 1
     steps:
-      - uses: actions/checkout@v3
+    - uses: earthly/actions/setup-earthly@v1
+      with:
+        version: v0.7.2
+    - uses: actions/checkout@v2
 
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin' 
-          java-version: '17'
-          cache: sbt
+    - name: Run build
+      run: earthly --ci --output +docker
 
-      - name: Cache vcpkg
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/Library/Caches/sbt-vcpkg/vcpkg
-            ~/.cache/sbt-vcpkg/vcpkg
-            ~/.cache/sbt-vcpkg/vcpkg-install
-          key: ${{ runner.os }}-sbt-vcpkg-new
-          
-      - uses: rui314/setup-mold@v1
+    - name: Start service in docker
+      run: |
+        mkdir -p logs
+        docker compose up -d
+        # docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
+        # docker run -d -v $PWD/logs:/var/log -e JWT_SECRET=secret --network host twotm8:latest
 
-      - name: Setup Postgres
-        run: |
-          set -e
-          docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
+    - name: Integration tests 
+      run: sbt integrationTests
+      env:
+        TWOTM8_URL: http://localhost:8080
 
-      - name: Setup for Scala Native
-        run: sudo ./scripts/setup-debian.sh
+    - name: Print logs
+      if: failure()
+      shell: bash
+      run: |
+        sudo cat logs/*.log
 
-      - name: Build app
-        run: sbt buildApp
-
-      - name: Start service in docker
-        run: |
-          docker build -f Dockerfile.lean . -t twotm8-runtime
-          mkdir -p logs
-          docker run -d -v $PWD/logs:/var/log -e JWT_SECRET=secret --network host twotm8-runtime 
-
-      - name: Integration tests 
-        run: sbt integrationTests
-        env:
-          TWOTM8_URL: http://localhost:8080
-
-      - name: Print logs
-        if: failure()
-        shell: bash
-        run: |
-          sudo cat logs/*.log
-
-  docker-build:
-    name: Docker build
-    runs-on: ubuntu-20.04
-    if: "!(startsWith(github.ref, 'refs/tags/v') || (github.ref == 'refs/heads/main'))"
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Build 
-        run: docker build . -t twotm8
 
   mergify_build_summary:
     name: Build summary
     runs-on: ubuntu-latest
-    needs: [build, docker-build]
+    needs: [build]
     steps:
       - name: I only exist to please Mergify :(
         run: echo "It's a sad existence but necessary"
@@ -103,7 +70,7 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to fly.io
-        run: "flyctl deploy -c fly-staging.toml"
+        run: "flyctl deploy -c fly-staging.toml -i twotm8:latest"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -125,6 +92,6 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to fly.io
-        run: "flyctl deploy -c fly-production.toml"
+        run: "flyctl deploy -c fly-production.toml -i twotm8:latest"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

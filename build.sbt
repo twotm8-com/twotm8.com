@@ -1,3 +1,4 @@
+import com.indoorvivants.detective.Platform
 import bindgen.interface.Binding
 import scala.scalanative.build.Mode
 import scala.scalanative.build.LTO
@@ -103,9 +104,11 @@ lazy val app =
         "com.lihaoyi" %%% "upickle" % Versions.upickle,
         "com.outr" %%% "scribe" % Versions.scribe
       ),
-      Compile / resources ~= {_.filter(_.ext == "sql")},
-      nativeConfig ~= (_.withEmbedResources(true).withIncrementalCompilation(true))
+      Compile / resources ~= { _.filter(_.ext == "sql") },
+      nativeConfig ~= (_.withEmbedResources(true)
+        .withIncrementalCompilation(true))
     )
+    .settings(arm64overrides)
 
 lazy val bindings =
   projectMatrix
@@ -135,7 +138,7 @@ addCommandAlias("integrationTests", "tests3/test")
 val Versions = new {
   val Scala = "3.2.2"
 
-  val SNUnit = "0.4.0"
+  val SNUnit = "0.5.1"
 
   val Tapir = "1.2.10"
 
@@ -334,7 +337,7 @@ frontendFile := {
 lazy val buildFrontend = taskKey[Unit]("")
 buildFrontend := {
   val js = frontendFile.value
-  val destination = (ThisBuild / baseDirectory).value / "build"
+  val destination = (ThisBuild / baseDirectory).value / "build" / "static"
 
   IO.write(
     destination / "index.html",
@@ -357,3 +360,15 @@ buildFrontend := {
 
   IO.copyFile(js, destination / "frontend.js")
 }
+
+val arm64overrides = Seq(
+  nativeConfig ~= { conf =>
+    if (
+      Platform.arch == Platform.Arch.Arm && Platform.bits == Platform.Bits.x64
+    ) {
+      conf
+        .withCompileOptions(conf.compileOptions ++ Seq("-arch", "arm64"))
+        .withLinkingOptions(conf.linkingOptions ++ Seq("-arch", "arm64"))
+    } else conf
+  }
+)
