@@ -29,6 +29,7 @@ deps:
     # SBT dependencies
     COPY build.sbt /sources
     COPY project/*.sbt /sources/project/
+    COPY project/build.properties /sources/project/
     RUN sbt update
     
     SAVE IMAGE --push twotm8-deps
