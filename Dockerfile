@@ -20,7 +20,7 @@ COPY . /sources
 
 RUN cd /sources && sbt clean buildApp
 
-FROM nginx/unit:1.29.1-minimal as runtime_deps
+FROM unit:1.30.0-minimal as runtime_deps
 
 FROM runtime_deps
 
