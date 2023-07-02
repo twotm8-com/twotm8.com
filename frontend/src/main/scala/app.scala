@@ -18,13 +18,13 @@ object App:
   def renderPage(using
       router: Router[Page]
   )(using AppState): Signal[HtmlElement] =
-    SplitRender[Page, HtmlElement](router.$currentPage)
+    SplitRender[Page, HtmlElement](router.currentPageSignal)
       .collectStatic(Page.Login)(Login)
       .collectStatic(Page.Logout)(Logout)
       .collectStatic(Page.Wall)(Wall)
       .collectStatic(Page.Register)(Register)
       .collectSignal[Page.Profile](Profile)
-      .$view
+      .signal
 
   def app(using state: AppState) =
     given Router[Page] = Page.router
@@ -61,7 +61,7 @@ object App:
 
     div(
       Styles.container,
-      header(
+      headerTag(
         Styles.logoHeader,
         h1(Styles.logo, "Twotm8"),
         small(
@@ -87,14 +87,17 @@ object App:
   def main(args: Array[String]): Unit =
     given state: AppState = AppState.init
 
-    documentEvents.onDomContentLoaded.foreach { _ =>
-      import scalacss.ProdDefaults.*
+    renderOnDomContentLoaded(
+      dom.document.getElementById("appContainer"), {
 
-      val sty = styleTag(Styles.render[String])
-      dom.document.querySelector("head").appendChild(sty.ref)
+        import scalacss.ProdDefaults.*
 
-      render(dom.document.getElementById("appContainer"), app)
-    }(unsafeWindowOwner)
+        val sty = styleTag(Styles.render[String])
+        dom.document.querySelector("head").appendChild(sty.ref)
+
+        app
+      }
+    )
 
   end main
 end App

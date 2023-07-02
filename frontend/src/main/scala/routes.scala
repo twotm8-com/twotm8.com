@@ -6,16 +6,13 @@ import com.raquo.laminar.api.L.*
 import com.raquo.waypoint.*
 import upickle.default.ReadWriter
 
-sealed trait Page
+sealed trait Page derives ReadWriter
 object Page:
   case object Wall extends Page
   case object Login extends Page
   case object Logout extends Page
   case object Register extends Page
   case class Profile(authorId: String) extends Page
-
-  given ReadWriter[Page.Profile] = upickle.default.macroRW[Page.Profile]
-  given ReadWriter[Page] = upickle.default.macroRW[Page]
 
   val mainRoute = Route.static(Page.Wall, root / endOfSegments)
   val loginRoute = Route.static(Page.Login, root / "login")
@@ -33,16 +30,16 @@ object Page:
     routes =
       List(mainRoute, loginRoute, registerRoute, profileRoute, logoutRoute),
     getPageTitle = {
-      case Wall       => "Twotm8 - safe space for thought leaders"
-      case Login      => "Twotm8 - login"
-      case Logout     => "Twotm8 - logout"
-      case Register   => "Twotm8 - register"
-      case Profile(a) => s"Twotm8 - $a"
+      case Wall       => "T8: safe space for thought leaders"
+      case Login      => "T8: login"
+      case Logout     => "T8: logout"
+      case Register   => "T8: register"
+      case Profile(a) => s"T8: $a"
     },
     serializePage = pg => upickle.default.writeJs(pg).render(),
     deserializePage = str => upickle.default.read[Page](str)
   )(
-    $popStateEvent = L.windowEvents.onPopState,
+    popStateEvents = windowEvents(_.onPopState),
     owner = L.unsafeWindowOwner
   )
 end Page
