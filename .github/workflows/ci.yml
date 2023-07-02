@@ -39,8 +39,8 @@ jobs:
           set -e
           docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
 
-      - name: Build app
-        run: sbt buildApp
+      - name: Tests and build app
+        run: sbt nativeTests buildApp
 
       - name: Start service in docker
         run: |

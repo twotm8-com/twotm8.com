@@ -18,6 +18,7 @@ lazy val root = project
 lazy val shared =
   projectMatrix
     .in(file("shared"))
+    .defaultAxes(Axes.shared*)
     .jvmPlatform(Seq(Versions.Scala))
     .jsPlatform(Seq(Versions.Scala))
     .nativePlatform(Seq(Versions.Scala))
@@ -32,6 +33,7 @@ lazy val shared =
 lazy val frontend =
   projectMatrix
     .in(file("frontend"))
+    .defaultAxes(Axes.frontend*)
     .jsPlatform(Seq(Versions.Scala))
     .settings(
       scalaJSUseMainModuleInitializer := true,
@@ -52,6 +54,7 @@ lazy val frontend =
 lazy val tests =
   projectMatrix
     .in(file("tests"))
+    .defaultAxes(Axes.shared*)
     .dependsOn(shared)
     .jvmPlatform(
       Seq(Versions.Scala),
@@ -64,8 +67,22 @@ lazy val tests =
         )
       )
     )
-    .jsPlatform(Seq(Versions.Scala))
-    .nativePlatform(Seq(Versions.Scala))
+    .nativePlatform(
+      Seq(Versions.Scala),
+      Seq.empty,
+      configure = { proj =>
+        proj
+          .dependsOn(app.native(Versions.Scala))
+          .enablePlugins(VcpkgNativePlugin)
+          .settings(
+            vcpkgDependencies := VcpkgDependencies("openssl"),
+            libraryDependencies +=
+              "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto % Test,
+            nativeConfig ~= { _.withIncrementalCompilation(true) }
+          )
+
+      }
+    )
     .settings(
       libraryDependencies ++= Seq(
         "com.disneystreaming" %%% "weaver-cats" % Versions.weaver % Test
@@ -73,21 +90,10 @@ lazy val tests =
       testFrameworks += new TestFramework("weaver.framework.CatsEffect")
     )
 
-lazy val set =
-  tests
-    .native(Versions.Scala)
-    .dependsOn(app.native(Versions.Scala))
-    .enablePlugins(VcpkgNativePlugin)
-    .settings(
-      vcpkgDependencies := VcpkgDependencies("openssl"),
-      libraryDependencies +=
-        "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto % Test,
-      nativeConfig ~= { _.withIncrementalCompilation(true)}
-    )
-
 lazy val app =
   projectMatrix
     .in(file("app"))
+    .defaultAxes(Axes.native*)
     .nativePlatform(Seq(Versions.Scala))
     .dependsOn(bindings, shared)
     .enablePlugins(VcpkgNativePlugin)
@@ -112,6 +118,7 @@ lazy val app =
 lazy val bindings =
   projectMatrix
     .in(file("bindings"))
+    .defaultAxes(Axes.native*)
     .nativePlatform(Seq(Versions.Scala))
     .enablePlugins(BindgenPlugin, VcpkgPlugin)
     .settings(
@@ -136,7 +143,16 @@ lazy val bindings =
       )
     )
 
-addCommandAlias("integrationTests", "tests3/test")
+addCommandAlias("integrationTests", "testsJVM/test")
+addCommandAlias("nativeTests", "testsNative/test")
+
+lazy val Axes = new {
+  val native =
+    Seq(VirtualAxis.scalaABIVersion(Versions.Scala), VirtualAxis.native)
+  val frontend =
+    Seq(VirtualAxis.scalaABIVersion(Versions.Scala), VirtualAxis.js)
+  val shared = Seq(VirtualAxis.scalaABIVersion(Versions.Scala))
+}
 
 val Versions = new {
   val Scala = "3.3.0"
