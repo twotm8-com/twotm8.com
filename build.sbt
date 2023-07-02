@@ -127,6 +127,10 @@ lazy val bindings =
           .withCImports(List("openssl/sha.h", "openssl/evp.h"))
           .addClangFlag("-I" + vcpkgConfigurator.value.includes("openssl"))
           .build
+      ),
+      bindgenMode := BindgenMode.Manual(
+        scalaDir = sourceDirectory.value / "main" / "scalanative" / "generated",
+        cDir = (Compile / resourceDirectory).value / "scala-native"
       )
     )
 

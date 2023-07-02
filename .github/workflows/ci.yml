@@ -14,8 +14,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-20.04
-    env:
-      LLVM_BIN: /usr/lib/llvm-14/bin
     steps:
       - uses: actions/checkout@v3
 
@@ -40,9 +38,6 @@ jobs:
         run: |
           set -e
           docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
-
-      - name: Setup for Scala Native
-        run: sudo ./scripts/setup-debian.sh
 
       - name: Build app
         run: sbt buildApp
