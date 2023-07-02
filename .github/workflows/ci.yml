@@ -39,6 +39,15 @@ jobs:
           set -e
           docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
 
+      - name: Install Unit development libraries 
+        run: |
+          curl --output /usr/share/keyrings/nginx-keyring.gpg https://unit.nginx.org/keys/nginx-keyring.gpg
+          deb [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ focal unit
+          deb-src [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ focal unit
+          apt update
+          apt install unit unit-dev
+
+
       - name: Tests and build app
         run: sbt nativeTests buildApp
 
