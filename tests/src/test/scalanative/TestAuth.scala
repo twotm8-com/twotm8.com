@@ -2,8 +2,34 @@ package twotm8
 
 import java.util.UUID
 import scala.scalanative.unsafe.*
+import openssl.OpenSSL
 
 object TestAuth extends weaver.FunSuite:
+  test("SHA256 encryption is solid") {
+    val knownHash =
+      "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+    val knownPassword = "password"
+
+    Zone { implicit z =>
+      assert(OpenSSL.sha256(knownPassword) == knownHash)
+    }
+  }
+  test("JWT: same settings produce same tokens") {
+    import scala.concurrent.duration.*
+    val settings1 = Settings(20.seconds, Secret("hello1"))
+    val id = AuthorId(UUID.randomUUID())
+
+    Zone { implicit z =>
+
+      val token1 = Auth.token(id)(using z)(using settings1)
+      val token2 = Auth.token(id)(using z)(using settings1)
+
+      assert(token1.jwt == token2.jwt)
+      assert(token1.expiresIn == token2.expiresIn)
+    }
+
+  }
+
   test("JWT: different settings produce different tokens") {
     import scala.concurrent.duration.*
     val settings1 = Settings(20.seconds, Secret("hello1"))
@@ -32,7 +58,7 @@ object TestAuth extends weaver.FunSuite:
       def isValid = Auth.validate(token1.jwt).isDefined
 
       assert(isValid)
-      Thread.sleep(2000) // 3 sec for posterity
+      Thread.sleep(1000) // 3 sec for posterity
       assert(!isValid)
     }
   }
