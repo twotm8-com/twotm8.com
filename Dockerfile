@@ -14,7 +14,7 @@ RUN curl -fL -o /bin/cs https://github.com/coursier/launchers/raw/master/coursie
 
 COPY vcpkg.json /sources/
 
-RUN cs launch com.indoorvivants.vcpkg:sn-vcpkg_3:0.0.11 -- install-manifest /sources/vcpkg.json -v
+RUN cs launch com.indoorvivants.vcpkg:sn-vcpkg_3:0.0.12 -- install-manifest /sources/vcpkg.json -v
 
 COPY . /sources
 
