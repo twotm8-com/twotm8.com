@@ -26,7 +26,6 @@ object OpenSSL:
     val str = toCString(plaintext)
     val sha256_ctx = stackalloc[SHA256_CTX](1)
     val hash = stackalloc[CUnsignedChar](SHA256_DIGEST_LENGTH)
-    val outputBuffer = stackalloc[CChar](65)
 
     assert(
       SHA256_Init(sha256_ctx) == 1,
@@ -45,11 +44,12 @@ object OpenSSL:
       "failed to finalise sha context"
     )
 
-    for i <- 0 until SHA256_DIGEST_LENGTH do
-      stdio.sprintf(outputBuffer + (i * 2), c"%02x", hash(i))
-    outputBuffer(64) = 0.toByte
+    val sb = new StringBuilder
 
-    fromCString(outputBuffer)
+    for i <- 0 until SHA256_DIGEST_LENGTH do
+      sb.append(f"${hash(i).toInt}%02x")
+
+    sb.result()
   end sha256
 
   def hmac(plaintext: String, key: String)(using Zone) =

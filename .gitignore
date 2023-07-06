@@ -12,4 +12,4 @@ target
 **/target/**
 project/project
 project/metals.sbt
-build/**
+./build

@@ -14,8 +14,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-20.04
-    env:
-      LLVM_BIN: /usr/lib/llvm-14/bin
     steps:
       - uses: actions/checkout@v3
 
@@ -41,11 +39,17 @@ jobs:
           set -e
           docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
 
-      - name: Setup for Scala Native
-        run: sudo ./scripts/setup-debian.sh
+      - name: Install Unit development libraries 
+        run: |
+          curl --output /usr/share/keyrings/nginx-keyring.gpg https://unit.nginx.org/keys/nginx-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ focal unit" >> unit.list
+          echo "deb-src [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ focal unit" >> unit.list 
+          sudo cp unit.list /etc/apt/sources.list.d/unit.list
+          sudo apt update
+          sudo apt install unit unit-dev
 
-      - name: Build app
-        run: sbt buildApp
+      - name: Tests and build app
+        run: sbt nativeTests buildApp
 
       - name: Start service in docker
         run: |

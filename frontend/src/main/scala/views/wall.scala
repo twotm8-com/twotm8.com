@@ -25,6 +25,8 @@ def Wall(using router: Router[Page], state: AppState): HtmlElement =
 
   val reset = () => bus.emit(0)
 
+  import org.scalajs.macrotaskexecutor.MacrotaskExecutor.Implicits.*
+
   val twots: EventStream[Seq[HtmlElement]] =
     bus.events.sample(state.$token).flatMap {
       case None => EventStream.fromValue(Seq.empty)

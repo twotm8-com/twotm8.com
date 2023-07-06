@@ -4,23 +4,24 @@ COPY scripts /scripts
 
 RUN /scripts/setup-debian.sh
 
-ENV LLVM_BIN "/usr/lib/llvm-14/bin"
-ENV CC "/usr/lib/llvm-14/bin/clang"
 ENV SN_RELEASE "fast"
 ENV CI "true"
 
 RUN curl -fL -o /bin/cs https://github.com/coursier/launchers/raw/master/coursier && \
     chmod +x /bin/cs && cs --version
 
+RUN curl -fL -o /bin/sbt https://raw.githubusercontent.com/sbt/sbt/1.9.x/sbt && \
+    chmod +x /bin/sbt && sbt -V --sbt-create    
+
 COPY vcpkg.json /sources/
 
-RUN cs launch com.indoorvivants.vcpkg:sn-vcpkg_3:0.0.11 -- install-manifest /sources/vcpkg.json -v
+RUN cs launch com.indoorvivants.vcpkg:sn-vcpkg_3:0.0.12 -- install-manifest /sources/vcpkg.json -v
 
 COPY . /sources
 
 RUN cd /sources && sbt clean buildApp
 
-FROM nginx/unit:1.29.1-minimal as runtime_deps
+FROM unit:1.30.0-minimal as runtime_deps
 
 FROM runtime_deps
 

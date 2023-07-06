@@ -1,3 +1,4 @@
+import bindgen.plugin.BindgenMode
 import bindgen.interface.Binding
 import scala.scalanative.build.Mode
 import scala.scalanative.build.LTO
@@ -17,6 +18,7 @@ lazy val root = project
 lazy val shared =
   projectMatrix
     .in(file("shared"))
+    .defaultAxes(Axes.shared*)
     .jvmPlatform(Seq(Versions.Scala))
     .jsPlatform(Seq(Versions.Scala))
     .nativePlatform(Seq(Versions.Scala))
@@ -31,6 +33,7 @@ lazy val shared =
 lazy val frontend =
   projectMatrix
     .in(file("frontend"))
+    .defaultAxes(Axes.frontend*)
     .jsPlatform(Seq(Versions.Scala))
     .settings(
       scalaJSUseMainModuleInitializer := true,
@@ -42,7 +45,8 @@ lazy val frontend =
         "com.raquo" %%% "waypoint" % Versions.waypoint,
         "com.softwaremill.retry" %%% "retry" % Versions.sttpRetry,
         "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.Tapir,
-        "org.scala-js" %%% "scalajs-dom" % Versions.scalajsDom
+        "org.scala-js" %%% "scalajs-dom" % Versions.scalajsDom,
+        "org.scala-js" %%% "scala-js-macrotask-executor" % Versions.macroTaskExecutor
       )
     )
     .dependsOn(shared)
@@ -50,6 +54,7 @@ lazy val frontend =
 lazy val tests =
   projectMatrix
     .in(file("tests"))
+    .defaultAxes(Axes.shared*)
     .dependsOn(shared)
     .jvmPlatform(
       Seq(Versions.Scala),
@@ -62,8 +67,22 @@ lazy val tests =
         )
       )
     )
-    .jsPlatform(Seq(Versions.Scala))
-    .nativePlatform(Seq(Versions.Scala))
+    .nativePlatform(
+      Seq(Versions.Scala),
+      Seq.empty,
+      configure = { proj =>
+        proj
+          .dependsOn(app.native(Versions.Scala))
+          .enablePlugins(VcpkgNativePlugin)
+          .settings(
+            vcpkgDependencies := VcpkgDependencies("openssl"),
+            libraryDependencies +=
+              "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto % Test,
+            nativeConfig ~= { _.withIncrementalCompilation(true) }
+          )
+
+      }
+    )
     .settings(
       libraryDependencies ++= Seq(
         "com.disneystreaming" %%% "weaver-cats" % Versions.weaver % Test
@@ -71,28 +90,16 @@ lazy val tests =
       testFrameworks += new TestFramework("weaver.framework.CatsEffect")
     )
 
-lazy val set =
-  tests
-    .native(Versions.Scala)
-    .dependsOn(app.native(Versions.Scala))
-    .enablePlugins(VcpkgNativePlugin)
-    .settings(
-      vcpkgDependencies := VcpkgDependencies("openssl"),
-      libraryDependencies +=
-        "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto % Test,
-      nativeConfig ~= { _.withIncrementalCompilation(true) }
-    )
-
 lazy val app =
   projectMatrix
     .in(file("app"))
+    .defaultAxes(Axes.native*)
     .nativePlatform(Seq(Versions.Scala))
     .dependsOn(bindings, shared)
     .enablePlugins(VcpkgNativePlugin)
     .settings(environmentConfiguration)
     .settings(
       scalaVersion := Versions.Scala,
-      vcpkgRootInit := com.indoorvivants.vcpkg.VcpkgRootInit.SystemCache(),
       vcpkgDependencies := VcpkgDependencies(
         (ThisBuild / baseDirectory).value / "vcpkg.json"
       ),
@@ -103,19 +110,20 @@ lazy val app =
         "com.lihaoyi" %%% "upickle" % Versions.upickle,
         "com.outr" %%% "scribe" % Versions.scribe
       ),
-      Compile / resources ~= {_.filter(_.ext == "sql")},
-      nativeConfig ~= (_.withEmbedResources(true).withIncrementalCompilation(true))
+      Compile / resources ~= { _.filter(_.ext == "sql") },
+      nativeConfig ~= (_.withEmbedResources(true)
+        .withIncrementalCompilation(true))
     )
 
 lazy val bindings =
   projectMatrix
     .in(file("bindings"))
+    .defaultAxes(Axes.native*)
     .nativePlatform(Seq(Versions.Scala))
     .enablePlugins(BindgenPlugin, VcpkgPlugin)
     .settings(
       scalaVersion := Versions.Scala,
       resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
-      vcpkgRootInit := com.indoorvivants.vcpkg.VcpkgRootInit.SystemCache(),
       // Generate bindings to Postgres main API
       vcpkgDependencies := VcpkgDependencies("openssl"),
       Compile / bindgenBindings ++= Seq(
@@ -126,28 +134,42 @@ lazy val bindings =
           )
           .withCImports(List("openssl/sha.h", "openssl/evp.h"))
           .addClangFlag("-I" + vcpkgConfigurator.value.includes("openssl"))
+          .addClangFlag("-fsigned-char")
           .build
+      ),
+      bindgenMode := BindgenMode.Manual(
+        scalaDir = sourceDirectory.value / "main" / "scalanative" / "generated",
+        cDir = (Compile / resourceDirectory).value / "scala-native"
       )
     )
 
-addCommandAlias("integrationTests", "tests3/test")
+addCommandAlias("integrationTests", "testsJVM/test")
+addCommandAlias("nativeTests", "testsNative/test")
+
+lazy val Axes = new {
+  val native =
+    Seq(VirtualAxis.scalaABIVersion(Versions.Scala), VirtualAxis.native)
+  val frontend =
+    Seq(VirtualAxis.scalaABIVersion(Versions.Scala), VirtualAxis.js)
+  val shared = Seq(VirtualAxis.scalaABIVersion(Versions.Scala))
+}
 
 val Versions = new {
-  val Scala = "3.2.2"
+  val Scala = "3.3.0"
 
-  val SNUnit = "0.4.0"
+  val SNUnit = "0.7.1"
 
-  val Tapir = "1.2.10"
+  val Tapir = "1.6.0"
 
-  val upickle = "2.0.0"
+  val upickle = "3.1.0"
 
-  val scribe = "3.11.1"
+  val scribe = "3.11.5"
 
-  val Laminar = "0.14.5"
+  val Laminar = "15.0.1"
 
-  val scalajsDom = "2.4.0"
+  val scalajsDom = "2.6.0"
 
-  val waypoint = "0.5.0"
+  val waypoint = "6.0.0"
 
   val scalacss = "1.0.0"
 
@@ -157,11 +179,13 @@ val Versions = new {
 
   val scalaNativeCrypto = "0.0.4"
 
-  val weaver = "0.8.1"
+  val weaver = "0.8.3"
 
-  val Http4s = "0.23.18"
+  val Http4s = "0.23.22"
 
-  val jwt = "9.1.2"
+  val jwt = "9.4.0"
+
+  val macroTaskExecutor = "1.1.1"
 }
 
 lazy val environmentConfiguration = Seq(nativeConfig := {
