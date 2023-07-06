@@ -4,8 +4,6 @@ COPY scripts /scripts
 
 RUN /scripts/setup-debian.sh
 
-ENV LLVM_BIN "/usr/lib/llvm-14/bin"
-ENV CC "/usr/lib/llvm-14/bin/clang"
 ENV SN_RELEASE "fast"
 ENV CI "true"
 
