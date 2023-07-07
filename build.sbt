@@ -143,10 +143,20 @@ lazy val bindings =
       )
     )
 
-addCommandAlias("integrationTests", "testsJVM/test")
+lazy val itRunner = projectMatrix
+  .in(file("it-runner"))
+  .defaultAxes(Axes.jvm*)
+  .jvmPlatform(Seq(Versions.Scala))
+  .dependsOn(tests % "compile->test")
+
+addCommandAlias("runIntegrationTests", "itRunner/run")
+addCommandAlias("localIntegrationTests", "runIntegrationTests http://localhost:8080")
+addCommandAlias("stagingIntegrationTests", "itRunner/run https://twotm8-web-staging.fly.dev/")
+
 addCommandAlias("nativeTests", "testsNative/test")
 
 lazy val Axes = new {
+  val jvm = Seq(VirtualAxis.jvm, VirtualAxis.scalaABIVersion(Versions.Scala))
   val native =
     Seq(VirtualAxis.scalaABIVersion(Versions.Scala), VirtualAxis.native)
   val frontend =
@@ -218,8 +228,8 @@ buildBackend := {
 
   sys.env.get("CI").foreach { _ =>
     val sudo = if (sys.env.contains("USE_SUDO")) "sudo " else ""
-  /* process.Process(s"${sudo}chown unit ${destination}").!! */
-  /* process.Process(s"${sudo}chgrp unit ${destination}").!! */
+    /* process.Process(s"${sudo}chown unit ${destination}").!! */
+    /* process.Process(s"${sudo}chgrp unit ${destination}").!! */
   }
 }
 
