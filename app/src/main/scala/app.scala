@@ -43,7 +43,7 @@ class App(db: DB)(using z: Zone, config: Settings):
 
   def get_thought_leader(
       nick: Nickname,
-      watching: Option[AuthorId]
+      watching: Option[WallViewer]
   ): Option[ThoughtLeader] =
     db.get_thought_leader_id(nick).map { id =>
       ThoughtLeader(

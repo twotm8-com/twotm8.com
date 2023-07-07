@@ -31,6 +31,9 @@ object Health:
 opaque type AuthorId = UUID
 object AuthorId extends OpaqueValue[AuthorId, UUID]
 
+opaque type WallViewer = AuthorId
+object WallViewer extends OpaqueValue[WallViewer, AuthorId]
+
 opaque type Follower = UUID
 object Follower extends OpaqueValue[Follower, UUID]
 

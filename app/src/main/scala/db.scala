@@ -18,7 +18,7 @@ trait DB:
   def get_twots(authorId: AuthorId): Vector[Twot]
   def get_twots_perspective(
       authorId: AuthorId,
-      viewedBy: AuthorId
+      viewedBy: WallViewer
   ): Vector[Twot]
 
   def get_wall(authorId: AuthorId): Vector[Twot]
@@ -52,10 +52,10 @@ object DB:
 
     def get_twots_perspective(
         authorId: AuthorId,
-        viewedBy: AuthorId
+        viewedBy: WallViewer
     ): Vector[Twot] =
       db.withLease(
-        get_twots_perspective_query.all(authorId -> viewedBy, twotCodec)
+        get_twots_perspective_query.all(viewedBy -> authorId, twotCodec)
       )
 
     def get_credentials(
@@ -138,6 +138,7 @@ object DB:
       bpchar.bimap(s => HashedPassword(s), _.ciphertext)
 
     val authorId = uuid.wrap(AuthorId)
+    val wallViewer = authorId.wrap(WallViewer)
     val twotId = uuid.wrap(TwotId)
     val nickname = varchar.wrap(Nickname)
     val twotText = varchar.wrap(Text)
@@ -183,7 +184,7 @@ object DB:
               left outer join uwotm8_counts u on t.twot_id = u.twot_id 
               inner join thought_leaders a on t.author_id = a.thought_leader_id 
               left outer join uwotm8s w on t.twot_id = w.twot_id 
-                                                    and w.author_id = $authorId
+                                                    and w.author_id = $wallViewer
           where 
             t.author_id = $authorId
           order by 

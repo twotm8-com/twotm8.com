@@ -129,7 +129,7 @@ class Api(app: App):
   private def get_thought_leader(auth: Either[ErrorInfo, AuthContext])(
       nickname: String
   ): Either[ErrorInfo, ThoughtLeader] =
-    val watcher = auth.toOption.map(_.author)
+    val watcher = auth.toOption.map(_.author).map(WallViewer(_))
 
     app.get_thought_leader(Nickname(nickname), watcher) match
       case None =>
