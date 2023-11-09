@@ -11,6 +11,7 @@ import java.util.UUID
 
 object endpoints:
   private val baseEndpoint = endpoint
+    .in("api")
     .errorOut(
       oneOf[ErrorInfo](
         oneOfVariant(
@@ -30,7 +31,6 @@ object endpoints:
         )
       )
     )
-    .in("api")
 
   private val secureEndpoint = baseEndpoint
     .securityIn(auth.bearer[JWT]())
@@ -53,10 +53,28 @@ object endpoints:
     .in("health")
     .out(jsonBody[Health])
 
-  val login = baseEndpoint.post
+  val login = endpoint
+    .in("api")
+    .post
     .in("auth" / "login")
     .in(jsonBody[Payload.Login])
     .out(jsonBody[Token])
+    .errorOut(
+      oneOf[ErrorInfo](
+        oneOfVariant(
+          statusCode(StatusCode.BadRequest)
+            .and(plainBody[ErrorInfo.InvalidCredentials])
+        ),
+        oneOfVariant(
+          statusCode(StatusCode.BadRequest).and(plainBody[ErrorInfo.BadRequest])
+        ),
+        oneOfVariant(
+          statusCode(StatusCode.InternalServerError).and(
+            plainBody[ErrorInfo.ServerError]
+          )
+        )
+      )
+    )
 
   val create_twot = secureEndpoint.post
     .in("twots" / "create")

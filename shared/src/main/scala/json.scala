@@ -52,6 +52,8 @@ object codecs:
     Codec.string.map(api.ErrorInfo.BadRequest(_))(_.message)
   given Codec.PlainCodec[api.ErrorInfo.Unauthorized] =
     Codec.string.map(api.ErrorInfo.Unauthorized(_))(_.message)
+  given Codec.PlainCodec[api.ErrorInfo.InvalidCredentials] =
+    Codec.string.map(_ => api.ErrorInfo.InvalidCredentials())(_.message)
   given Codec.PlainCodec[api.ErrorInfo.ServerError] =
     Codec.string.map(api.ErrorInfo.ServerError(_))(_.message)
 
