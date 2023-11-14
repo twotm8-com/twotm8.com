@@ -49,8 +49,8 @@ jobs:
               ./configure --no-ipv6 --no-regex --log=/dev/stderr --user=$(whoami) --group=$(id -g -n) --statedir=statedir && \
               make build/sbin/unitd && \
               make build/lib/libunit.a && \
-              install -p build/lib/libunit.a /usr/local/lib/libunit.a && \
-              mv build/sbin/unitd /usr/sbin/unitd
+              sudo install -p build/lib/libunit.a /usr/local/lib/libunit.a && \
+              sudo mv build/sbin/unitd /usr/sbin/unitd
 
 
       - name: Tests and build app
