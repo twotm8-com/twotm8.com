@@ -4,6 +4,7 @@ import scala.scalanative.build.Mode
 import scala.scalanative.build.LTO
 import scala.sys.process
 import java.nio.file.Paths
+import sys.process.*
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -290,6 +291,7 @@ ThisBuild / buildBackend := {
   val serverBinary = (app.native(Versions.Scala) / Compile / nativeLink).value
 
   IO.copyFile(serverBinary, dest / "server")
+  s"chmod 0777 ${dest / "server"}".!
   IO.copyFile(dest.getParentFile() / "conf.json", statedir / "conf.json")
 
   dest
@@ -339,14 +341,13 @@ lazy val runServer = taskKey[Unit]("")
 runServer := {
   val dest = buildBackend.value
 
-  import sys.process.*
-
   val proc = Process(UNITD_LOCAL_COMMAND, cwd = dest)
 
   proc.!
 }
 
-lazy val devServer = project.in(file("dev-server"))
+lazy val devServer = project
+  .in(file("dev-server"))
   .enablePlugins(RevolverPlugin)
   .settings(
     fork := true,
@@ -358,5 +359,3 @@ lazy val devServer = project.in(file("dev-server"))
       "JWT_SECRET" -> "helloworld"
     )
   )
-
-
