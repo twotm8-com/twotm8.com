@@ -52,7 +52,7 @@ jobs:
         run: sbt nativeTests buildApp
 
       - name: Integration tests 
-        run: sbt devServer/reStart localIntegrationTests
+        run: sudo sbt devServer/reStart localIntegrationTests
 
       - name: Print logs
         if: failure()
