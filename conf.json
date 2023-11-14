@@ -18,24 +18,24 @@
         "uri": "~^((/(.*)\\.(js|css|html))|/)$"
       },
       "action": {
-        "share": "/www/static$uri"
+        "share": "static$uri"
       }
     },
     {
       "action": {
-        "share": "/www/static/index.html"
+        "share": "static/index.html"
       }
     }
   ],
   "applications": {
     "app": {
       "processes": {
-        "max": 50,
+        "max": 8,
         "spare": 2,
         "idle_timeout": 180
       },
       "type": "external",
-      "executable": "/usr/bin/twotm8",
+      "executable": "server",
       "limits": {
         "timeout": 1,
         "requests": 1000

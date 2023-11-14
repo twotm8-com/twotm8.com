@@ -1,37 +1,77 @@
-FROM eclipse-temurin:17-focal as builder
+FROM keynmol/sn-vcpkg:latest as dev
 
-COPY scripts /scripts
+# Install NGINX Unit
+RUN apt-get update && \
+    apt-get install -y curl && \
+    curl --output /usr/share/keyrings/nginx-keyring.gpg \
+      https://unit.nginx.org/keys/nginx-keyring.gpg && \
+    echo 'deb [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ jammy unit \
+          deb-src [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ jammy unit' >> /etc/apt/sources.list.d/unit.list && \
+    apt-get update && \
+    apt-get install -y unit unit-dev
 
-RUN /scripts/setup-debian.sh
+WORKDIR /workdir
 
-ENV SN_RELEASE "fast"
-ENV CI "true"
+# pre-download SBT
+RUN sbt --sbt-create version
 
-RUN curl -fL -o /bin/cs https://github.com/coursier/launchers/raw/master/coursier && \
-    chmod +x /bin/cs && cs --version
+RUN git version
 
-RUN curl -fL -o /bin/sbt https://raw.githubusercontent.com/sbt/sbt/1.9.x/sbt && \
-    chmod +x /bin/sbt && sbt -V --sbt-create    
+COPY vcpkg.json .
 
-COPY vcpkg.json /sources/
+ENV VCPKG_FORCE_SYSTEM_BINARIES=1
+RUN sn-vcpkg install -v --manifest vcpkg.json
 
-RUN cs launch com.indoorvivants.vcpkg:sn-vcpkg_3:0.0.12 -- install-manifest /sources/vcpkg.json -v
+COPY . .
 
-COPY . /sources
+RUN sbt clean buildApp
 
-RUN cd /sources && sbt clean buildApp
+RUN mkdir empty_dir
+RUN cat /etc/passwd | grep unit > passwd
+RUN cat /etc/group | grep unit > group
 
-FROM unit:1.30.0-minimal as runtime_deps
+RUN chown unit:unit build/server
+RUN chmod 0777 build/server
 
-FROM runtime_deps
+FROM scratch
 
-COPY --from=builder /sources/build/twotm8 /usr/bin/twotm8
-COPY --from=builder /sources/build/ /www/static
+WORKDIR /workdir
 
-COPY config.json /docker-entrypoint.d/config.json
+COPY --from=dev /workdir/build/statedir /workdir/statedir
+COPY --from=dev /workdir/build/server /workdir/server
+COPY --from=dev /workdir/build/static /workdir/static
 
-RUN chmod 0777 /usr/bin/twotm8
+# unitd dependencies
+COPY --from=dev /usr/sbin/unitd /usr/sbin/unitd
+COPY --from=dev /workdir/passwd /etc/passwd
+COPY --from=dev /workdir/group /etc/group
+COPY --from=dev /workdir/empty_dir /var/run
 
-EXPOSE 8080
+## x86_64 specific files
+COPY --from=dev */lib/x86_64-linux-gnu/libm.so.6 /lib/x86_64-linux-gnu/libm.so.6
+COPY --from=dev */lib/x86_64-linux-gnu/libpcre2-8.so.0 /lib/x86_64-linux-gnu/libpcre2-8.so.0
+COPY --from=dev */lib/x86_64-linux-gnu/libcrypto.so.3 /lib/x86_64-linux-gnu/libcrypto.so.3
+COPY --from=dev */lib/x86_64-linux-gnu/libssl.so.3 /lib/x86_64-linux-gnu/libssl.so.3
+COPY --from=dev */lib/x86_64-linux-gnu/libc.so.6 /lib/x86_64-linux-gnu/libc.so.6
+COPY --from=dev */lib64/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
 
-CMD ["unitd", "--no-daemon", "--control", "unix:/var/run/control.unit.sock", "--log", "/dev/stderr"]
+## aarch64 speicific files
+COPY --from=dev */lib/aarch64-linux-gnu/libm.so.6 /lib/aarch64-linux-gnu/libm.so.6
+COPY --from=dev */lib/aarch64-linux-gnu/libpcre2-8.so.0 /lib/aarch64-linux-gnu/libpcre2-8.so.0
+COPY --from=dev */lib/aarch64-linux-gnu/libcrypto.so.3 /lib/aarch64-linux-gnu/libcrypto.so.3
+COPY --from=dev */lib/aarch64-linux-gnu/libssl.so.3 /lib/aarch64-linux-gnu/libssl.so.3
+COPY --from=dev */lib/aarch64-linux-gnu/libc.so.6 /lib/aarch64-linux-gnu/libc.so.6
+COPY --from=dev */lib/ld-linux-aarch64.so.1 /lib/ld-linux-aarch64.so.1
+
+# scala native dependencies
+
+## x86_64 specific files
+COPY --from=dev */lib/x86_64-linux-gnu/libstdc++.so.6 /lib/x86_64-linux-gnu/libstdc++.so.6
+COPY --from=dev */lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/libgcc_s.so.1
+
+## aarch64 speicific files
+COPY --from=dev */lib/aarch64-linux-gnu/libstdc++.so.6 /lib/aarch64-linux-gnu/libstdc++.so.6
+COPY --from=dev */lib/aarch64-linux-gnu/libgcc_s.so.1 /lib/aarch64-linux-gnu/libgcc_s.so.1
+
+ENTRYPOINT [ "unitd", "--statedir", "statedir", "--log", "/dev/stdout", "--no-daemon" ]
+
