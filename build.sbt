@@ -334,7 +334,7 @@ buildFrontend := {
 }
 
 def UNITD_LOCAL_COMMAND =
-  "unitd --statedir statedir --log /dev/stderr --no-daemon --control 127.0.0.1:9933"
+  "unitd --statedir statedir --log /dev/stderr --no-daemon --control 127.0.0.1:9000"
 
 lazy val runServer = taskKey[Unit]("")
 runServer := {

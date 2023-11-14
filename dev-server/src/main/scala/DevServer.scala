@@ -12,6 +12,8 @@ import java.io.File
 
   import sys.process.*
 
+  println(s"Running [$unitdCommand] in cwd=[$cwd]")
+
   val bgProc = Process(unitdCommand, cwd = new File(cwd)).run()
 
   sys.addShutdownHook {
