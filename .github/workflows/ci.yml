@@ -55,7 +55,7 @@ jobs:
         run: |
           # ls -R ./build
           # sudo chown -R unit:unit build
-          # sudo chmod -R 0666 build
+          sudo chmod -R 0777 build
           cd build && unitd --statedir statedir --log /dev/stderr --no-daemon --control 127.0.0.1:9000 --user $(whoami) --group $(id -g -n)
 
   release:
