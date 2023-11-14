@@ -140,6 +140,6 @@ class Api(app: App):
 
   private def login(login: Payload.Login): Either[ErrorInfo, Token] =
     app.login(login.nickname, login.password) match
-      case None      => Left(ErrorInfo.BadRequest("Invalid credentials"))
+      case None      => Left(ErrorInfo.InvalidCredentials())
       case Some(tok) => Right(tok)
 end Api

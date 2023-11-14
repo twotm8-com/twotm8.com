@@ -7,6 +7,35 @@ import java.nio.file.Paths
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
+inThisBuild(
+  List(
+    homepage := Some(url("https://github.com/twotm8-com/twotm8.com")),
+    licenses := List(
+      "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
+    ),
+    developers := List(
+      Developer(
+        "indoorvivants",
+        "Anton Sviridov",
+        "contact@indoorvivants.com",
+        url("https://blog.indoorvivants.com")
+      )
+    ),
+    version := (if (!sys.env.contains("CI")) "dev" else version.value),
+    crossScalaVersions := Nil
+  )
+)
+
+organization := "com.indoorvivants.twotm8"
+sonatypeProfileName := "com.indoorvivants"
+
+lazy val publishing = Seq(
+  organization := "com.indoorvivants.twotm8",
+  sonatypeProfileName := "com.indoorvivants"
+)
+
+lazy val noPublish = Seq(publish / skip := true, publishLocal / skip := true)
+
 lazy val root = project
   .in(file("."))
   .aggregate(frontend.projectRefs*)
@@ -14,6 +43,8 @@ lazy val root = project
   .aggregate(shared.projectRefs*)
   .aggregate(tests.projectRefs*)
   .aggregate(bindings.projectRefs*)
+  .aggregate(client.projectRefs*)
+  .settings(noPublish)
 
 lazy val shared =
   projectMatrix
@@ -23,11 +54,13 @@ lazy val shared =
     .jsPlatform(Seq(Versions.Scala))
     .nativePlatform(Seq(Versions.Scala))
     .settings(
+      moduleName := "twotm8-shared",
       scalaVersion := Versions.Scala,
       libraryDependencies ++= Seq(
         "com.softwaremill.sttp.tapir" %%% "tapir-json-upickle" % Versions.Tapir,
         "com.softwaremill.sttp.tapir" %%% "tapir-core" % Versions.Tapir
-      )
+      ),
+      publishing
     )
 
 lazy val frontend =
@@ -47,7 +80,8 @@ lazy val frontend =
         "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.Tapir,
         "org.scala-js" %%% "scalajs-dom" % Versions.scalajsDom,
         "org.scala-js" %%% "scala-js-macrotask-executor" % Versions.macroTaskExecutor
-      )
+      ),
+      noPublish
     )
     .dependsOn(shared)
 
@@ -87,7 +121,8 @@ lazy val tests =
       libraryDependencies ++= Seq(
         "com.disneystreaming" %%% "weaver-cats" % Versions.weaver % Test
       ),
-      testFrameworks += new TestFramework("weaver.framework.CatsEffect")
+      testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
+      noPublish
     )
 
 lazy val app =
@@ -112,7 +147,8 @@ lazy val app =
       ),
       Compile / resources ~= { _.filter(_.ext == "sql") },
       nativeConfig ~= (_.withEmbedResources(true)
-        .withIncrementalCompilation(true))
+        .withIncrementalCompilation(true)),
+      noPublish
     )
 
 lazy val bindings =
@@ -140,7 +176,44 @@ lazy val bindings =
       bindgenMode := BindgenMode.Manual(
         scalaDir = sourceDirectory.value / "main" / "scalanative" / "generated",
         cDir = (Compile / resourceDirectory).value / "scala-native"
-      )
+      ),
+      noPublish
+    )
+
+lazy val client =
+  projectMatrix
+    .in(file("client"))
+    .defaultAxes(Axes.native*)
+    .nativePlatform(Seq(Versions.Scala))
+    .dependsOn(shared)
+    .enablePlugins(VcpkgNativePlugin, BindgenPlugin)
+    .settings(environmentConfiguration)
+    .settings(
+      moduleName := "twotm8-client",
+      scalaVersion := Versions.Scala,
+      vcpkgDependencies := VcpkgDependencies(
+        "curl",
+        "libidn2"
+      ),
+      vcpkgNativeConfig ~= { _.addRenamedLibrary("curl", "libcurl") },
+      libraryDependencies ++= Seq(
+        "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.Tapir
+      ),
+      bindgenBindings +=
+        Binding
+          .builder(
+            vcpkgConfigurator.value.includes("curl") / "curl" / "curl.h",
+            "curl"
+          )
+          .addCImport("curl/curl.h")
+          .withNoLocation(true)
+          .build,
+      bindgenMode := BindgenMode.Manual(
+        sourceDirectory.value / "main" / "scala" / "generated",
+        (Compile / resourceDirectory).value / "scala-native"
+      ),
+      nativeConfig ~= (_.withIncrementalCompilation(true)),
+      publishing
     )
 
 lazy val itRunner = projectMatrix
@@ -150,8 +223,14 @@ lazy val itRunner = projectMatrix
   .dependsOn(tests % "compile->test")
 
 addCommandAlias("runIntegrationTests", "itRunner/run")
-addCommandAlias("localIntegrationTests", "runIntegrationTests http://localhost:8080")
-addCommandAlias("stagingIntegrationTests", "itRunner/run https://twotm8-web-staging.fly.dev/")
+addCommandAlias(
+  "localIntegrationTests",
+  "runIntegrationTests http://localhost:8080"
+)
+addCommandAlias(
+  "stagingIntegrationTests",
+  "itRunner/run https://twotm8-web-staging.fly.dev/"
+)
 
 addCommandAlias("nativeTests", "testsNative/test")
 
@@ -165,25 +244,25 @@ lazy val Axes = new {
 }
 
 val Versions = new {
-  val Scala = "3.3.0"
+  val Scala = "3.3.1"
 
-  val SNUnit = "0.7.1"
+  val SNUnit = "0.7.2"
 
-  val Tapir = "1.6.0"
+  val Tapir = "1.8.5"
 
-  val upickle = "3.1.0"
+  val upickle = "3.1.3"
 
-  val scribe = "3.11.5"
+  val scribe = "3.12.2"
 
-  val Laminar = "15.0.1"
+  val Laminar = "16.0.0"
 
   val scalajsDom = "2.6.0"
 
-  val waypoint = "6.0.0"
+  val waypoint = "7.0.0"
 
   val scalacss = "1.0.0"
 
-  val Roach = "0.0.3"
+  val Roach = "0.0.6"
 
   val sttpRetry = "0.3.6"
 
@@ -191,9 +270,9 @@ val Versions = new {
 
   val weaver = "0.8.3"
 
-  val Http4s = "0.23.22"
+  val Http4s = "0.23.23"
 
-  val jwt = "9.4.0"
+  val jwt = "9.4.4"
 
   val macroTaskExecutor = "1.1.1"
 }
