@@ -219,6 +219,7 @@ lazy val itRunner = projectMatrix
   .defaultAxes(Axes.jvm*)
   .jvmPlatform(Seq(Versions.Scala))
   .dependsOn(tests % "compile->test")
+  .settings(fork := true)
 
 addCommandAlias("runIntegrationTests", "itRunner/run")
 addCommandAlias(
