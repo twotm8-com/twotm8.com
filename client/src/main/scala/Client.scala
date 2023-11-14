@@ -13,6 +13,11 @@ trait Client:
   def wall(token: JWT): Either[ErrorInfo, Vector[Twot]]
   def me(token: JWT): Either[ErrorInfo, ThoughtLeader]
   def create_twot(text: String, token: JWT): Either[ErrorInfo, Unit]
+  def send_twot(text: String, token: JWT): Either[ErrorInfo, Unit]
+  def get_thought_leader(
+      nickname: String,
+      token: Option[JWT]
+  ): Either[ErrorInfo, ThoughtLeader]
 end Client
 
 object Client:
@@ -28,6 +33,29 @@ object Client:
       interp: SttpClientInterpreter,
       base: Uri
   ) extends Client:
+
+    override def get_thought_leader(
+        nickname: String,
+        token: Option[JWT]
+    ): Either[ErrorInfo, ThoughtLeader] =
+      interp
+        .toSecureClientThrowDecodeFailures(
+          endpoints.get_thought_leader,
+          Some(base),
+          backend
+        )
+        .apply(token)
+        .apply(nickname)
+
+    override def send_twot(text: String, token: JWT): Either[ErrorInfo, Unit] =
+      interp
+        .toSecureClientThrowDecodeFailures(
+          endpoints.create_twot,
+          Some(base),
+          backend
+        )
+        .apply(token)
+        .apply(Payload.Create(Text(text)))
 
     override def me(token: JWT): Either[ErrorInfo, ThoughtLeader] =
       interp
