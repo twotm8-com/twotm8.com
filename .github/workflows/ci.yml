@@ -37,16 +37,21 @@ jobs:
       - name: Setup Postgres
         run: |
           set -e
-          docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
+          docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -e POSTGRES_DB=twotm8 -d postgres
 
       - name: Install Unit development libraries 
         run: |
-          curl --output /usr/share/keyrings/nginx-keyring.gpg https://unit.nginx.org/keys/nginx-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ focal unit" >> unit.list
-          echo "deb-src [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ focal unit" >> unit.list 
-          sudo cp unit.list /etc/apt/sources.list.d/unit.list
-          sudo apt update
-          sudo apt install unit unit-dev
+          UNIT_VERSION=1.31.1
+
+          curl -O https://unit.nginx.org/download/unit-$UNIT_VERSION.tar.gz && tar xzf unit-$UNIT_VERSION.tar.gz
+          mv unit-$UNIT_VERSION unit
+          cd unit && \
+              ./configure --no-ipv6 --no-regex --log=/dev/stderr --user=$(whoami) --group=$(id -g -n) --statedir=statedir && \
+              make build/sbin/unitd && \
+              make build/lib/libunit.a && \
+              install -p build/lib/libunit.a /usr/local/lib/libunit.a && \
+              mv build/sbin/unitd /usr/sbin/unitd
+
 
       - name: Tests and build app
         run: sbt nativeTests buildApp

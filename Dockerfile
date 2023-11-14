@@ -2,20 +2,26 @@ FROM keynmol/sn-vcpkg:latest as dev
 
 # Install NGINX Unit
 RUN apt-get update && \
-    apt-get install -y curl && \
-    curl --output /usr/share/keyrings/nginx-keyring.gpg \
-      https://unit.nginx.org/keys/nginx-keyring.gpg && \
-    echo 'deb [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ jammy unit \
-          deb-src [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ jammy unit' >> /etc/apt/sources.list.d/unit.list && \
-    apt-get update && \
-    apt-get install -y unit unit-dev
+    apt-get install -y curl
+
+ARG unit_version=1.31.1
+ENV UNIT_VERSION=${unit_version}
+
+# Compile minimal NGINX Unit
+RUN apt-get update && apt-get install -y curl build-essential
+RUN curl -O https://unit.nginx.org/download/unit-$UNIT_VERSION.tar.gz && tar xzf unit-$UNIT_VERSION.tar.gz
+RUN mv unit-$UNIT_VERSION unit
+RUN cd unit && \
+    ./configure --no-ipv6 --no-regex --log=/dev/stderr --user=unit --group=unit --statedir=statedir && \
+    make build/sbin/unitd && \
+    make build/lib/libunit.a && \
+    install -p build/lib/libunit.a /usr/local/lib/libunit.a && \
+    mv build/sbin/unitd /usr/sbin/unitd
 
 WORKDIR /workdir
 
 # pre-download SBT
 RUN sbt --sbt-create version
-
-RUN git version
 
 COPY vcpkg.json .
 
@@ -24,14 +30,18 @@ RUN sn-vcpkg install -v --manifest vcpkg.json
 
 COPY . .
 
+ARG scalanative_mode=release-fast
+ARG scalanative_lto=thin
+
+ENV SCALANATIVE_MODE=${scalanative_mode}
+ENV SCALANATIVE_LTO=${scalanative_lto}
+ENV CI=true
+
 RUN sbt clean buildApp
 
 RUN mkdir empty_dir
 RUN cat /etc/passwd | grep unit > passwd
 RUN cat /etc/group | grep unit > group
-
-RUN chown unit:unit build/server
-RUN chmod 0777 build/server
 
 FROM scratch
 

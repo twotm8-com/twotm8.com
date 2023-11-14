@@ -355,6 +355,7 @@ lazy val devServer = project
       "TWOTM8_SERVER_BINARY" -> (ThisBuild / buildBackend).value.toString,
       "TWOTM8_UNITD_COMMAND" -> UNITD_LOCAL_COMMAND,
       "TWOTM8_SERVER_CWD" -> ((ThisBuild / baseDirectory).value / "build").toString,
-      "JWT_SECRET" -> "helloworld"
+      "JWT_SECRET" -> "helloworld",
+      "PG_DB" -> "twotm8"
     )
   )
