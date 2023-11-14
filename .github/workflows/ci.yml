@@ -54,7 +54,8 @@ jobs:
       - name: Integration tests 
         run: |
           ls -R ./build
-          sbt "devServer/reStart; localIntegrationTests"
+          cd build && unitd --statedir statedir --log /dev/stderr --no-daemon --control 127.0.0.1:9000
+          # sbt "devServer/reStart; localIntegrationTests"
 
   release:
     name: Release
