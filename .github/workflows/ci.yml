@@ -52,13 +52,9 @@ jobs:
         run: sbt nativeTests buildApp
 
       - name: Integration tests 
-        run: sbt devServer/reStart localIntegrationTests
-
-      - name: Print logs
-        if: failure()
-        shell: bash
         run: |
-          sudo cat logs/*.log
+          sbt runServer & 
+          sbt localIntegrationTests
 
   release:
     name: Release
