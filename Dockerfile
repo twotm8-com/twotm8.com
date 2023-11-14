@@ -1,37 +1,87 @@
-FROM eclipse-temurin:17-focal as builder
+FROM keynmol/sn-vcpkg:latest as dev
 
-COPY scripts /scripts
+# Install NGINX Unit
+RUN apt-get update && \
+    apt-get install -y curl
 
-RUN /scripts/setup-debian.sh
+ARG unit_version=1.31.1
+ENV UNIT_VERSION=${unit_version}
 
-ENV SN_RELEASE "fast"
-ENV CI "true"
+# Compile minimal NGINX Unit
+RUN apt-get update && apt-get install -y curl build-essential
+RUN curl -O https://unit.nginx.org/download/unit-$UNIT_VERSION.tar.gz && tar xzf unit-$UNIT_VERSION.tar.gz
+RUN mv unit-$UNIT_VERSION unit
+RUN cd unit && \
+    ./configure --no-ipv6 --no-regex --log=/dev/stderr --user=unit --group=unit --statedir=statedir && \
+    make build/sbin/unitd && \
+    make build/lib/libunit.a && \
+    install -p build/lib/libunit.a /usr/local/lib/libunit.a && \
+    mv build/sbin/unitd /usr/sbin/unitd
 
-RUN curl -fL -o /bin/cs https://github.com/coursier/launchers/raw/master/coursier && \
-    chmod +x /bin/cs && cs --version
+WORKDIR /workdir
 
-RUN curl -fL -o /bin/sbt https://raw.githubusercontent.com/sbt/sbt/1.9.x/sbt && \
-    chmod +x /bin/sbt && sbt -V --sbt-create    
+# pre-download SBT
+RUN sbt --sbt-create version
 
-COPY vcpkg.json /sources/
+COPY vcpkg.json .
 
-RUN cs launch com.indoorvivants.vcpkg:sn-vcpkg_3:0.0.12 -- install-manifest /sources/vcpkg.json -v
+ENV VCPKG_FORCE_SYSTEM_BINARIES=1
+RUN sn-vcpkg install -v --manifest vcpkg.json
 
-COPY . /sources
+COPY . .
 
-RUN cd /sources && sbt clean buildApp
+ARG scalanative_mode=release-fast
+ARG scalanative_lto=thin
 
-FROM unit:1.30.0-minimal as runtime_deps
+ENV SCALANATIVE_MODE=${scalanative_mode}
+ENV SCALANATIVE_LTO=${scalanative_lto}
+ENV CI=true
 
-FROM runtime_deps
+RUN sbt clean buildApp
 
-COPY --from=builder /sources/build/twotm8 /usr/bin/twotm8
-COPY --from=builder /sources/build/ /www/static
+RUN mkdir empty_dir
+RUN cat /etc/passwd | grep unit > passwd
+RUN cat /etc/group | grep unit > group
 
-COPY config.json /docker-entrypoint.d/config.json
+FROM scratch
 
-RUN chmod 0777 /usr/bin/twotm8
+WORKDIR /workdir
 
-EXPOSE 8080
+COPY --from=dev /workdir/build/statedir /workdir/statedir
+COPY --from=dev /workdir/build/server /workdir/server
+COPY --from=dev /workdir/build/static /workdir/static
 
-CMD ["unitd", "--no-daemon", "--control", "unix:/var/run/control.unit.sock", "--log", "/dev/stderr"]
+# unitd dependencies
+COPY --from=dev /usr/sbin/unitd /usr/sbin/unitd
+COPY --from=dev /workdir/passwd /etc/passwd
+COPY --from=dev /workdir/group /etc/group
+COPY --from=dev /workdir/empty_dir /var/run
+
+## x86_64 specific files
+COPY --from=dev */lib/x86_64-linux-gnu/libm.so.6 /lib/x86_64-linux-gnu/libm.so.6
+COPY --from=dev */lib/x86_64-linux-gnu/libpcre2-8.so.0 /lib/x86_64-linux-gnu/libpcre2-8.so.0
+COPY --from=dev */lib/x86_64-linux-gnu/libcrypto.so.3 /lib/x86_64-linux-gnu/libcrypto.so.3
+COPY --from=dev */lib/x86_64-linux-gnu/libssl.so.3 /lib/x86_64-linux-gnu/libssl.so.3
+COPY --from=dev */lib/x86_64-linux-gnu/libc.so.6 /lib/x86_64-linux-gnu/libc.so.6
+COPY --from=dev */lib64/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
+
+## aarch64 speicific files
+COPY --from=dev */lib/aarch64-linux-gnu/libm.so.6 /lib/aarch64-linux-gnu/libm.so.6
+COPY --from=dev */lib/aarch64-linux-gnu/libpcre2-8.so.0 /lib/aarch64-linux-gnu/libpcre2-8.so.0
+COPY --from=dev */lib/aarch64-linux-gnu/libcrypto.so.3 /lib/aarch64-linux-gnu/libcrypto.so.3
+COPY --from=dev */lib/aarch64-linux-gnu/libssl.so.3 /lib/aarch64-linux-gnu/libssl.so.3
+COPY --from=dev */lib/aarch64-linux-gnu/libc.so.6 /lib/aarch64-linux-gnu/libc.so.6
+COPY --from=dev */lib/ld-linux-aarch64.so.1 /lib/ld-linux-aarch64.so.1
+
+# scala native dependencies
+
+## x86_64 specific files
+COPY --from=dev */lib/x86_64-linux-gnu/libstdc++.so.6 /lib/x86_64-linux-gnu/libstdc++.so.6
+COPY --from=dev */lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/libgcc_s.so.1
+
+## aarch64 speicific files
+COPY --from=dev */lib/aarch64-linux-gnu/libstdc++.so.6 /lib/aarch64-linux-gnu/libstdc++.so.6
+COPY --from=dev */lib/aarch64-linux-gnu/libgcc_s.so.1 /lib/aarch64-linux-gnu/libgcc_s.so.1
+
+ENTRYPOINT [ "unitd", "--statedir", "statedir", "--log", "/dev/stdout", "--no-daemon" ]
+

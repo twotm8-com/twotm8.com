@@ -37,34 +37,31 @@ jobs:
       - name: Setup Postgres
         run: |
           set -e
-          docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
+          docker run -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -e POSTGRES_DB=twotm8 -d postgres
 
       - name: Install Unit development libraries 
         run: |
-          curl --output /usr/share/keyrings/nginx-keyring.gpg https://unit.nginx.org/keys/nginx-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ focal unit" >> unit.list
-          echo "deb-src [signed-by=/usr/share/keyrings/nginx-keyring.gpg] https://packages.nginx.org/unit/ubuntu/ focal unit" >> unit.list 
-          sudo cp unit.list /etc/apt/sources.list.d/unit.list
-          sudo apt update
-          sudo apt install unit unit-dev
+          UNIT_VERSION=1.31.1
+
+          curl -O https://unit.nginx.org/download/unit-$UNIT_VERSION.tar.gz && tar xzf unit-$UNIT_VERSION.tar.gz
+          mv unit-$UNIT_VERSION unit
+          cd unit && \
+              ./configure --no-ipv6 --no-regex --log=/dev/stderr --user=$(whoami) --group=$(id -g -n) --statedir=statedir && \
+              make build/sbin/unitd && \
+              make build/lib/libunit.a && \
+              sudo install -p build/lib/libunit.a /usr/local/lib/libunit.a && \
+              sudo mv build/sbin/unitd /usr/sbin/unitd
+
 
       - name: Tests and build app
         run: sbt nativeTests buildApp
 
-      - name: Start service in docker
-        run: |
-          docker build -f Dockerfile.lean . -t twotm8-runtime
-          mkdir -p logs
-          docker run -d -v $PWD/logs:/var/log -e JWT_SECRET=secret --network host twotm8-runtime 
-
       - name: Integration tests 
-        run: sbt localIntegrationTests
-
-      - name: Print logs
-        if: failure()
-        shell: bash
         run: |
-          sudo cat logs/*.log
+          # ls -R ./build
+          # sudo chown -R unit:unit build
+          sudo chmod -R 0777 build
+          cd build && unitd --statedir statedir --log /dev/stderr --no-daemon --control 127.0.0.1:9000 --user $(whoami) --group $(id -g -n)
 
   release:
     name: Release

@@ -4,6 +4,7 @@ import scala.scalanative.build.Mode
 import scala.scalanative.build.LTO
 import scala.sys.process
 import java.nio.file.Paths
+import sys.process.*
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -132,7 +133,6 @@ lazy val app =
     .nativePlatform(Seq(Versions.Scala))
     .dependsOn(bindings, shared)
     .enablePlugins(VcpkgNativePlugin)
-    .settings(environmentConfiguration)
     .settings(
       scalaVersion := Versions.Scala,
       vcpkgDependencies := VcpkgDependencies(
@@ -187,7 +187,6 @@ lazy val client =
     .nativePlatform(Seq(Versions.Scala))
     .dependsOn(shared)
     .enablePlugins(VcpkgNativePlugin, BindgenPlugin)
-    .settings(environmentConfiguration)
     .settings(
       moduleName := "twotm8-client",
       scalaVersion := Versions.Scala,
@@ -221,6 +220,7 @@ lazy val itRunner = projectMatrix
   .defaultAxes(Axes.jvm*)
   .jvmPlatform(Seq(Versions.Scala))
   .dependsOn(tests % "compile->test")
+  .settings(fork := true)
 
 addCommandAlias("runIntegrationTests", "itRunner/run")
 addCommandAlias(
@@ -248,7 +248,7 @@ val Versions = new {
 
   val SNUnit = "0.7.2"
 
-  val Tapir = "1.8.5"
+  val Tapir = "1.9.0"
 
   val upickle = "3.1.3"
 
@@ -277,163 +277,23 @@ val Versions = new {
   val macroTaskExecutor = "1.1.1"
 }
 
-lazy val environmentConfiguration = Seq(nativeConfig := {
-  val conf = nativeConfig.value
-  if (sys.env.get("SN_RELEASE").contains("fast"))
-    conf.withOptimize(true).withLTO(LTO.thin).withMode(Mode.releaseFast)
-  else conf
-})
-
 val buildApp = taskKey[Unit]("")
 buildApp := {
   buildBackend.value
   buildFrontend.value
 }
 
-val buildBackend = taskKey[Unit]("")
-buildBackend := {
-  val target = (app.native(Versions.Scala) / Compile / nativeLink).value
+lazy val buildBackend = taskKey[File]("")
+ThisBuild / buildBackend := {
+  val dest = (ThisBuild / baseDirectory).value / "build"
+  val statedir = dest / "statedir"
+  IO.createDirectory(statedir)
+  val serverBinary = (app.native(Versions.Scala) / Compile / nativeLink).value
 
-  val destination = (ThisBuild / baseDirectory).value / "build" / "twotm8"
+  IO.copyFile(serverBinary, dest / "server")
+  IO.copyFile(dest.getParentFile() / "conf.json", statedir / "conf.json")
 
-  IO.copyFile(
-    target,
-    destination,
-    preserveExecutable = true,
-    preserveLastModified = true
-  )
-
-  process.Process(s"chmod 0777 ${destination}").!!
-
-  sys.env.get("CI").foreach { _ =>
-    val sudo = if (sys.env.contains("USE_SUDO")) "sudo " else ""
-    /* process.Process(s"${sudo}chown unit ${destination}").!! */
-    /* process.Process(s"${sudo}chgrp unit ${destination}").!! */
-  }
-}
-
-def unitConfig(buildPath: File) =
-  s"""
-{
-  "listeners": {
-    "*:8080": {
-      "pass": "routes"
-    }
-  },
-  "routes": [
-    {
-      "match": {
-        "uri": "/api/*"
-      },
-      "action": {
-        "pass": "applications/app"
-      }
-    },
-    {
-      "match": {
-        "uri": "~^((/(.*)\\\\.(js|css|html))|/)$$"
-      },
-      "action": {
-        "share": "${buildPath}$$uri"
-      }
-    },
-    {
-      "action": {
-        "share": "${buildPath / "index.html"}"
-      }
-    }
-  ],
-  "applications": {
-    "app": {
-      "processes": {
-        "max": 50,
-        "spare": 2,
-        "idle_timeout": 180
-      },
-      "type": "external",
-      "executable": "${buildPath / "twotm8"}",
-      ${sys.env
-      .get("CI")
-      .map { _ =>
-        """
-        "user": "runner",
-        "group": "docker",
-        """
-      }
-      .getOrElse("")}
-      "environment": {
-        "JWT_SECRET": "secret"
-      },
-      "limits": {
-        "timeout": 1,
-        "requests": 1000
-      }
-    }
-  }
-}
-
-"""
-
-lazy val deployLocally = taskKey[Unit]("")
-deployLocally := {
-  locally { buildApp.value }
-  locally { updateUnitConfiguration.value }
-}
-
-lazy val updateUnitConfiguration = taskKey[Unit]("")
-
-updateUnitConfiguration := {
-  // `unitd --help` prints the default unix socket
-  val unixSocketPath = process
-    .Process(Seq("unitd", "--help"))
-    .!!
-    .linesIterator
-    .find(_.contains("unix:"))
-    .get
-    .replaceAll(".+unix:", "")
-    .stripSuffix("\"")
-
-  val f = new File(unixSocketPath)
-
-  assert(
-    f.exists(),
-    s"Expected Unix socket file for Nginx Unit `${f}` to exist"
-  )
-
-  sLog.value.info(s"Unit socket path: $unixSocketPath")
-
-  sLog.value.info(buildBackend.value.toString)
-
-  val configJson = writeConfig.value
-
-  val sudo = if (sys.env.contains("USE_SUDO")) "sudo " else ""
-
-  val cmd_create =
-    s"${sudo}curl -s -X PUT --data-binary @$configJson --unix-socket $unixSocketPath http://localhost/config"
-  val cmd =
-    s"${sudo}curl -s --unix-socket $unixSocketPath http://localhost/control/applications/app/restart"
-
-  val create_result = process.Process(cmd_create).!!
-  val reload_result = process.Process(cmd).!!
-
-  assert(
-    create_result.contains("Reconfiguration done"),
-    s"Unit reconfiguration didn't succeed, returning `$create_result`"
-  )
-  assert(
-    reload_result.contains("success"),
-    s"Unit reload didn't succeed, returning `$reload_result`"
-  )
-}
-
-lazy val writeConfig = taskKey[File]("")
-writeConfig := {
-  val buildPath = (ThisBuild / baseDirectory).value / "build"
-  val path = buildPath / "config.json"
-
-  IO.write(path, unitConfig(buildPath))
-
-  path
+  dest
 }
 
 lazy val frontendFile = taskKey[File]("")
@@ -447,26 +307,55 @@ frontendFile := {
 lazy val buildFrontend = taskKey[Unit]("")
 buildFrontend := {
   val js = frontendFile.value
-  val destination = (ThisBuild / baseDirectory).value / "build"
+  val staticdir =
+    (ThisBuild / baseDirectory).value / "build" / "static"
+  IO.createDirectory(staticdir)
 
   IO.write(
-    destination / "index.html",
+    staticdir / "index.html",
     """
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <meta http-equiv="X-UA-Compatible" content="ie=edge">
-          <title>Twotm8 - a place for thought leaders to thought lead</title>
-        </head>
-        <body>
-        <div id="appContainer"></div>
-        <script src="/frontend.js"></script>
-        </body>
-      </html>
-    """.stripMargin
+    |<!DOCTYPE html>
+    |<html lang="en">
+    |  <head>
+    |    <meta charset="UTF-8">
+    |    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    |    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    |    <title>Twotm8 - a place for thought leaders to thought lead</title>
+    |  </head>
+    |  <body>
+    |  <div id="appContainer"></div>
+    |  <script src="/frontend.js"></script>
+    |  </body>
+    |</html>
+    """.stripMargin.trim
   )
 
-  IO.copyFile(js, destination / "frontend.js")
+  IO.copyFile(js, staticdir / "frontend.js")
 }
+
+def UNITD_LOCAL_COMMAND =
+  "unitd --statedir statedir --log /dev/stderr --no-daemon --control 127.0.0.1:9000"
+
+lazy val runServer = taskKey[Unit]("")
+runServer := {
+  val dest = buildBackend.value
+
+  val proc = Process(UNITD_LOCAL_COMMAND, cwd = dest)
+
+  proc.!
+}
+
+lazy val devServer = project
+  .in(file("dev-server"))
+  .enablePlugins(RevolverPlugin)
+  .settings(
+    fork := true,
+    scalaVersion := Versions.Scala,
+    envVars ++= Map(
+      "TWOTM8_SERVER_BINARY" -> (ThisBuild / buildBackend).value.toString,
+      "TWOTM8_UNITD_COMMAND" -> UNITD_LOCAL_COMMAND,
+      "TWOTM8_SERVER_CWD" -> ((ThisBuild / baseDirectory).value / "build").toString,
+      "JWT_SECRET" -> "helloworld",
+      "PG_DB" -> "twotm8"
+    )
+  )
