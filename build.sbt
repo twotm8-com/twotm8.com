@@ -287,11 +287,10 @@ lazy val buildBackend = taskKey[File]("")
 ThisBuild / buildBackend := {
   val dest = (ThisBuild / baseDirectory).value / "build"
   val statedir = dest / "statedir"
-  IO.createDirectory(dest)
+  IO.createDirectory(statedir)
   val serverBinary = (app.native(Versions.Scala) / Compile / nativeLink).value
 
   IO.copyFile(serverBinary, dest / "server")
-  s"chmod 0777 ${dest / "server"}".!
   IO.copyFile(dest.getParentFile() / "conf.json", statedir / "conf.json")
 
   dest
@@ -308,12 +307,12 @@ frontendFile := {
 lazy val buildFrontend = taskKey[Unit]("")
 buildFrontend := {
   val js = frontendFile.value
-  val statedir =
+  val staticdir =
     (ThisBuild / baseDirectory).value / "build" / "static"
-  IO.createDirectory(statedir)
+  IO.createDirectory(staticdir)
 
   IO.write(
-    statedir / "index.html",
+    staticdir / "index.html",
     """
     |<!DOCTYPE html>
     |<html lang="en">
@@ -331,7 +330,7 @@ buildFrontend := {
     """.stripMargin.trim
   )
 
-  IO.copyFile(js, statedir / "frontend.js")
+  IO.copyFile(js, staticdir / "frontend.js")
 }
 
 def UNITD_LOCAL_COMMAND =

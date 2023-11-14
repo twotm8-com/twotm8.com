@@ -53,6 +53,7 @@ jobs:
 
       - name: Integration tests 
         run: |
+          ls -R ./build
           sbt "devServer/reStart; localIntegrationTests"
 
   release:
