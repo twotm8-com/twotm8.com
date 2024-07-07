@@ -383,25 +383,6 @@ deployLocally := {
 lazy val updateUnitConfiguration = taskKey[Unit]("")
 
 updateUnitConfiguration := {
-  // `unitd --help` prints the default unix socket
-  val unixSocketPath = process
-    .Process(Seq("unitd", "--help"))
-    .!!
-    .linesIterator
-    .find(_.contains("unix:"))
-    .get
-    .replaceAll(".+unix:", "")
-    .stripSuffix("\"")
-
-  val f = new File(unixSocketPath)
-
-  assert(
-    f.exists(),
-    s"Expected Unix socket file for Nginx Unit `${f}` to exist"
-  )
-
-  sLog.value.info(s"Unit socket path: $unixSocketPath")
-
   sLog.value.info(buildBackend.value.toString)
 
   val configJson = writeConfig.value
@@ -409,11 +390,11 @@ updateUnitConfiguration := {
   val sudo = if (sys.env.contains("USE_SUDO")) "sudo " else ""
 
   val cmd_create =
-    s"${sudo}curl -s -X PUT --data-binary @$configJson --unix-socket $unixSocketPath http://localhost/config"
+    s"${sudo}unitc /config"
   val cmd =
-    s"${sudo}curl -s --unix-socket $unixSocketPath http://localhost/control/applications/app/restart"
+    s"${sudo}unitc /control/applications/app/restart"
 
-  val create_result = process.Process(cmd_create).!!
+  val create_result = process.Process(cmd_create).#<(configJson).!!
   val reload_result = process.Process(cmd).!!
 
   assert(
