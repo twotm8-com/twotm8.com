@@ -1,6 +1,7 @@
 package twotm8.client
 
 import scala.scalanative.unsafe.*
+import scala.scalanative.libc.stdlib.{malloc, free}
 
 private[client] opaque type Memory = (String, () => Unit)
 private[client] object Memory:
@@ -13,14 +14,14 @@ private[client] object Captured:
   def unsafe[D <: AnyRef: Tag](value: D): (Ptr[Captured[D]], Memory) =
     import scalanative.runtime.*
 
-    val rawptr = libc.malloc(sizeof[Captured[D]])
+    val rawptr = malloc(sizeof[Captured[D]])
     val mem = fromRawPtr[Captured[D]](rawptr)
     val deallocate: Memory =
       (
         value.toString(),
         () =>
           GCRoots.removeRoot(value.asInstanceOf[Object])
-          libc.free(toRawPtr[Captured[D]](mem))
+          free(toRawPtr[Captured[D]](mem))
       )
 
     Intrinsics.storeObject(rawptr, value)

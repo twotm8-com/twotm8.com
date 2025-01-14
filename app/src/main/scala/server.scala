@@ -42,7 +42,7 @@ object Main:
       .withMinimumLevel(Level.Debug)
       .replace()
 
-    Zone { implicit z =>
+    Zone {
       Pool.single(postgres) { pool =>
         given Settings = Settings(
           tokenExpiration = 14.days,
