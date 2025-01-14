@@ -1,9 +1,5 @@
 package twotm8
 
-import openssl.OpenSSL
-import openssl.functions.*
-import openssl.types.*
-
 import java.time.Instant
 import java.util.Base64
 import java.util.UUID
@@ -28,7 +24,7 @@ object Auth:
       if header != headersString then None
       else
         val expectedSignature =
-          OpenSSL.hmac(
+          hmac(
             headersString + "." + payload,
             settings.secretKey.plaintext
           )
@@ -89,7 +85,7 @@ object Auth:
     val payload = new String(enc.encodeToString(content))
 
     val signature =
-      OpenSSL.hmac(headersString + "." + payload, config.secretKey.plaintext)
+      hmac(headersString + "." + payload, config.secretKey.plaintext)
 
     Token(JWT(headersString + "." + payload + "." + signature), exp)
   end token

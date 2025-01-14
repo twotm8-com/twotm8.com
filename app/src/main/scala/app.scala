@@ -1,9 +1,9 @@
 package twotm8
 
-import openssl.OpenSSL
 import twotm8.db.DB
 
 import scala.scalanative.unsafe.*
+import java.security.MessageDigest
 
 class App(db: DB)(using z: Zone, config: Settings):
 
@@ -22,7 +22,7 @@ class App(db: DB)(using z: Zone, config: Settings):
     db.get_credentials(nickname).flatMap { case authorId -> hashedPassword =>
       val List(salt, hash) = hashedPassword.ciphertext.split(":").toList
       val expected =
-        plaintextPassword.process(pl => OpenSSL.sha256(salt + ":" + pl))
+        plaintextPassword.process(pl => sha256(salt + ":" + pl))
 
       Option.when(expected.equalsIgnoreCase(hash))(
         Auth.token(authorId)
@@ -59,7 +59,7 @@ class App(db: DB)(using z: Zone, config: Settings):
 
   def register(nickname: Nickname, pass: Password): Option[AuthorId] =
     val salt = scala.util.Random.alphanumeric.take(16).mkString
-    val hash = pass.process(pl => OpenSSL.sha256(salt + ":" + pl))
+    val hash = pass.process(pl => sha256(salt + ":" + pl))
     val saltedHash = HashedPassword(salt + ":" + hash)
 
     db.register(nickname, saltedHash)

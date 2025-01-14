@@ -42,7 +42,6 @@ lazy val root = project
   .aggregate(app.projectRefs*)
   .aggregate(shared.projectRefs*)
   .aggregate(tests.projectRefs*)
-  .aggregate(bindings.projectRefs*)
   .aggregate(client.projectRefs*)
   .settings(noPublish)
 
@@ -119,7 +118,8 @@ lazy val tests =
     )
     .settings(
       libraryDependencies ++= Seq(
-        "com.disneystreaming" %%% "weaver-cats" % Versions.weaver % Test
+        // TODO. Not supported yet on Scala Native 0.5
+        // "com.disneystreaming" %%% "weaver-cats" % Versions.weaver % Test
       ),
       testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
       noPublish
@@ -130,7 +130,7 @@ lazy val app =
     .in(file("app"))
     .defaultAxes(Axes.native*)
     .nativePlatform(Seq(Versions.Scala))
-    .dependsOn(bindings, shared)
+    .dependsOn(shared)
     .enablePlugins(VcpkgNativePlugin)
     .settings(environmentConfiguration)
     .settings(
@@ -139,7 +139,7 @@ lazy val app =
         (ThisBuild / baseDirectory).value / "vcpkg.json"
       ),
       libraryDependencies ++= Seq(
-        "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto % Test,
+        "com.github.lolgab" %%% "scala-native-crypto" % Versions.scalaNativeCrypto,
         "com.github.lolgab" %%% "snunit-tapir" % Versions.SNUnit,
         "com.indoorvivants.roach" %%% "core" % Versions.Roach,
         "com.lihaoyi" %%% "upickle" % Versions.upickle,
@@ -148,35 +148,6 @@ lazy val app =
       Compile / resources ~= { _.filter(_.ext == "sql") },
       nativeConfig ~= (_.withEmbedResources(true)
         .withIncrementalCompilation(true)),
-      noPublish
-    )
-
-lazy val bindings =
-  projectMatrix
-    .in(file("bindings"))
-    .defaultAxes(Axes.native*)
-    .nativePlatform(Seq(Versions.Scala))
-    .enablePlugins(BindgenPlugin, VcpkgPlugin)
-    .settings(
-      scalaVersion := Versions.Scala,
-      resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
-      // Generate bindings to Postgres main API
-      vcpkgDependencies := VcpkgDependencies("openssl"),
-      Compile / bindgenBindings ++= Seq(
-        Binding
-          .builder(
-            (ThisBuild / baseDirectory).value / "bindings" / "openssl-amalgam.h",
-            "openssl"
-          )
-          .withCImports(List("openssl/sha.h", "openssl/evp.h"))
-          .addClangFlag("-I" + vcpkgConfigurator.value.includes("openssl"))
-          .addClangFlag("-fsigned-char")
-          .build
-      ),
-      bindgenMode := BindgenMode.Manual(
-        scalaDir = sourceDirectory.value / "main" / "scalanative" / "generated",
-        cDir = (Compile / resourceDirectory).value / "scala-native"
-      ),
       noPublish
     )
 
@@ -197,17 +168,16 @@ lazy val client =
       ),
       vcpkgNativeConfig ~= { _.addRenamedLibrary("curl", "libcurl") },
       libraryDependencies ++= Seq(
-        "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.Tapir
+        // TODO. Not supported yet on Scala Native 0.5
+        // "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.Tapir
       ),
       bindgenBindings +=
-        Binding
-          .builder(
+        Binding(
             vcpkgConfigurator.value.includes("curl") / "curl" / "curl.h",
             "curl"
           )
           .addCImport("curl/curl.h")
-          .withNoLocation(true)
-          .build,
+          .withNoLocation(true),
       bindgenMode := BindgenMode.Manual(
         sourceDirectory.value / "main" / "scala" / "generated",
         (Compile / resourceDirectory).value / "scala-native"
@@ -244,15 +214,15 @@ lazy val Axes = new {
 }
 
 val Versions = new {
-  val Scala = "3.3.1"
+  val Scala = "3.5.2"
 
-  val SNUnit = "0.7.2"
+  val SNUnit = "0.10.3"
 
-  val Tapir = "1.8.5"
+  val Tapir = "1.11.12"
 
-  val upickle = "3.1.3"
+  val upickle = "3.3.1"
 
-  val scribe = "3.12.2"
+  val scribe = "3.16.0"
 
   val Laminar = "16.0.0"
 
@@ -262,11 +232,11 @@ val Versions = new {
 
   val scalacss = "1.0.0"
 
-  val Roach = "0.0.6"
+  val Roach = "0.1.0"
 
   val sttpRetry = "0.3.6"
 
-  val scalaNativeCrypto = "0.0.4"
+  val scalaNativeCrypto = "0.2.0"
 
   val weaver = "0.8.3"
 
