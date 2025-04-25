@@ -3,7 +3,6 @@ package twotm8
 import twotm8.db.DB
 
 import scala.scalanative.unsafe.*
-import java.security.MessageDigest
 
 class App(db: DB)(using z: Zone, config: Settings):
 
