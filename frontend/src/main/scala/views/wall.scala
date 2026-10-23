@@ -28,7 +28,7 @@ def Wall(using router: Router[Page], state: AppState): HtmlElement =
   import org.scalajs.macrotaskexecutor.MacrotaskExecutor.Implicits.*
 
   val twots: EventStream[Seq[HtmlElement]] =
-    bus.events.sample(state.$token).flatMap {
+    bus.events.sample(state.$token).flatMapSwitch {
       case None => EventStream.fromValue(Seq.empty)
       case Some(tok) =>
         EventStream

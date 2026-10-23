@@ -1,37 +1,36 @@
-FROM eclipse-temurin:17-focal as builder
+FROM eclipse-temurin:17-noble AS builder
 
 COPY scripts /scripts
 
 RUN /scripts/setup-debian.sh
 
-ENV SN_RELEASE "fast"
-ENV CI "true"
+ENV SN_RELEASE="fast"
+ENV CI="true"
 
 RUN curl -fL -o /bin/cs https://github.com/coursier/launchers/raw/master/coursier && \
     chmod +x /bin/cs && cs --version
 
-RUN curl -fL -o /bin/sbt https://raw.githubusercontent.com/sbt/sbt/1.9.x/sbt && \
+RUN curl -fL -o /bin/sbt https://raw.githubusercontent.com/sbt/sbt/v1.13.0/sbt && \
     chmod +x /bin/sbt && sbt -V --sbt-create    
 
 COPY vcpkg.json /sources/
 
-RUN cs launch com.indoorvivants.vcpkg:sn-vcpkg_3:0.0.12 -- install-manifest /sources/vcpkg.json -v
+RUN cs launch com.indoorvivants.vcpkg:sn-vcpkg_3:0.0.21 -- install --manifest /sources/vcpkg.json -v
 
 COPY . /sources
 
 RUN cd /sources && sbt clean buildApp
 
-FROM unit:1.30.0-minimal as runtime_deps
+# The executable embeds unitd, which needs OpenSSL 3 and PCRE2
+FROM debian:bookworm-slim
 
-FROM runtime_deps
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libssl3 libpcre2-8-0 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /sources/build/twotm8 /usr/bin/twotm8
 COPY --from=builder /sources/build/ /www/static
 
-COPY config.json /docker-entrypoint.d/config.json
-
-RUN chmod 0777 /usr/bin/twotm8
-
 EXPOSE 8080
 
-CMD ["unitd", "--no-daemon", "--control", "unix:/var/run/control.unit.sock", "--log", "/dev/stderr"]
+CMD ["/usr/bin/twotm8"]

@@ -1,12 +1,12 @@
-FROM unit:1.30.0-minimal
+FROM debian:bookworm-slim
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libssl3 libpcre2-8-0 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY build/twotm8 /usr/bin/twotm8
 COPY build /www/static
 
-COPY config.json /docker-entrypoint.d/config.json
-
-RUN chmod 0777 /usr/bin/twotm8
-
 EXPOSE 8080
 
-CMD ["unitd", "--no-daemon", "--control", "unix:/var/run/control.unit.sock", "--log", "/dev/stderr"]
+CMD ["/usr/bin/twotm8"]

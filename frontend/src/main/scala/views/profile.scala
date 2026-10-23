@@ -20,7 +20,7 @@ def Profile(page: Signal[Page.Profile])(using Router[Page])(using
     page
       .map(_.authorId)
       .combineWith(state.$token)
-      .flatMap { case (name, token) =>
+      .flatMapSwitch { case (name, token) =>
         Signal.fromFuture(ApiClient.get_profile(name, token))
       }
 

@@ -42,7 +42,7 @@ object Main:
       .withMinimumLevel(Level.Debug)
       .replace()
 
-    Zone { implicit z =>
+    Zone {
       Pool.single(postgres) { pool =>
         given Settings = Settings(
           tokenExpiration = 14.days,
@@ -54,12 +54,13 @@ object Main:
           )
         )
 
-        Migrate.all(pool)(roach.ResourceFile("/V00001.Schema.sql"))
+        Migrate.all(pool)(roach.ResourceFile.applyUnsafe("/V00001.Schema.sql"))
 
         val app = App(DB.postgres(pool))
         val routes = api.Api(app).routes
 
         SyncServerBuilder
+          .setConfig(unitConfig)
           .setRequestHandler(toHandler(routes))
           .build()
           .listen()

@@ -10,8 +10,8 @@ object TestAuth extends weaver.FunSuite:
       "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
     val knownPassword = "password"
 
-    Zone { implicit z =>
-      assert(OpenSSL.sha256(knownPassword) == knownHash)
+    Zone {
+      expect(OpenSSL.sha256(knownPassword) == knownHash)
     }
   }
   test("JWT: same settings produce same tokens") {
@@ -19,13 +19,13 @@ object TestAuth extends weaver.FunSuite:
     val settings1 = Settings(20.seconds, Secret("hello1"))
     val id = AuthorId(UUID.randomUUID())
 
-    Zone { implicit z =>
+    Zone {
 
-      val token1 = Auth.token(id)(using z)(using settings1)
-      val token2 = Auth.token(id)(using z)(using settings1)
+      val token1 = Auth.token(id)(using summon, settings1)
+      val token2 = Auth.token(id)(using summon, settings1)
 
       assert(token1.jwt == token2.jwt)
-      assert(token1.expiresIn == token2.expiresIn)
+      expect(token1.expiresIn == token2.expiresIn)
     }
 
   }
@@ -36,13 +36,13 @@ object TestAuth extends weaver.FunSuite:
     val settings2 = Settings(40.seconds, Secret("hello2"))
     val id = AuthorId(UUID.randomUUID())
 
-    Zone { implicit z =>
+    Zone {
 
-      val token1 = Auth.token(id)(using z)(using settings1)
-      val token2 = Auth.token(id)(using z)(using settings2)
+      val token1 = Auth.token(id)(using summon, settings1)
+      val token2 = Auth.token(id)(using summon, settings2)
 
       assert(token1.jwt != token2.jwt)
-      assert(token1.expiresIn != token2.expiresIn)
+      expect(token1.expiresIn != token2.expiresIn)
     }
 
   }
@@ -52,14 +52,14 @@ object TestAuth extends weaver.FunSuite:
     given Settings = Settings(1.seconds, Secret("hello1"))
     val id = AuthorId(UUID.randomUUID())
 
-    Zone { implicit z =>
+    Zone {
 
       val token1 = Auth.token(id)
       def isValid = Auth.validate(token1.jwt).isDefined
 
       assert(isValid)
       Thread.sleep(1000) // 3 sec for posterity
-      assert(!isValid)
+      expect(!isValid)
     }
   }
 
@@ -69,10 +69,10 @@ object TestAuth extends weaver.FunSuite:
     val settings2 = Settings(40.seconds, Secret("hello2"))
     val id = AuthorId(UUID.randomUUID())
 
-    Zone { implicit z =>
+    Zone {
 
-      val token1 = Auth.token(id)(using z)(using settings1)
-      val token2 = Auth.token(id)(using z)(using settings2)
+      val token1 = Auth.token(id)(using summon, settings1)
+      val token2 = Auth.token(id)(using summon, settings2)
 
       {
         given Settings = settings1
@@ -95,7 +95,7 @@ object TestAuth extends weaver.FunSuite:
       {
         given Settings = settings1
         val validated = Auth.validate(token2.jwt)
-        assert(validated.isEmpty)
+        expect(validated.isEmpty)
       }
 
     }

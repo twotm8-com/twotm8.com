@@ -37,8 +37,7 @@ object Page:
       case Profile(a) => s"T8: $a"
     },
     serializePage = pg => upickle.default.writeJs(pg).render(),
-    deserializePage = str => upickle.default.read[Page](str)
-  )(
+    deserializePage = str => upickle.default.read[Page](str),
     popStateEvents = windowEvents(_.onPopState),
     owner = L.unsafeWindowOwner
   )

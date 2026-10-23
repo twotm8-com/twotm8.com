@@ -77,13 +77,13 @@ object OpenSSL:
       ) == 1
     )
     assert(EVP_DigestSignFinal(mdctx, null, md_len) == 1)
-    val md_value = stackalloc[CUnsignedChar]((!md_len).asInstanceOf[ULong])
+    val md_value = stackalloc[CUnsignedChar](!md_len)
 
     assert(EVP_DigestSignFinal(mdctx, md_value, md_len) == 1)
 
     val ar = Array.newBuilder[Byte]
 
-    for i <- 0 until (!md_len).asInstanceOf[ULong].toInt do
+    for i <- 0 until (!md_len).toInt do
       ar.addOne(md_value(i).toByte)
 
     EVP_MD_CTX_free(mdctx)

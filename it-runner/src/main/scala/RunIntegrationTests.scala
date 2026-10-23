@@ -25,7 +25,7 @@ object RunIntegrationTests extends IOApp:
         )
           .run(fs2.Stream.emits(suites(url)))
           .flatMap {
-            case o @ Outcome(successes, ignored, cancelled, failures) =>
+            case o @ Outcome(successes, ignored, failures) =>
               Logger(o.formatted).as {
                 if failures > 0 then ExitCode.Error
                 else ExitCode.Success

@@ -27,11 +27,9 @@ inThisBuild(
 )
 
 organization := "com.indoorvivants.twotm8"
-sonatypeProfileName := "com.indoorvivants"
 
 lazy val publishing = Seq(
-  organization := "com.indoorvivants.twotm8",
-  sonatypeProfileName := "com.indoorvivants"
+  organization := "com.indoorvivants.twotm8"
 )
 
 lazy val noPublish = Seq(publish / skip := true, publishLocal / skip := true)
@@ -119,7 +117,7 @@ lazy val tests =
     )
     .settings(
       libraryDependencies ++= Seq(
-        "com.disneystreaming" %%% "weaver-cats" % Versions.weaver % Test
+        "org.typelevel" %%% "weaver-cats" % Versions.weaver % Test
       ),
       testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
       noPublish
@@ -131,7 +129,7 @@ lazy val app =
     .defaultAxes(Axes.native*)
     .nativePlatform(Seq(Versions.Scala))
     .dependsOn(bindings, shared)
-    .enablePlugins(VcpkgNativePlugin)
+    .enablePlugins(VcpkgNativePlugin, SNUnitPlugin)
     .settings(environmentConfiguration)
     .settings(
       scalaVersion := Versions.Scala,
@@ -159,19 +157,16 @@ lazy val bindings =
     .enablePlugins(BindgenPlugin, VcpkgPlugin)
     .settings(
       scalaVersion := Versions.Scala,
-      resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
       // Generate bindings to Postgres main API
       vcpkgDependencies := VcpkgDependencies("openssl"),
       Compile / bindgenBindings ++= Seq(
-        Binding
-          .builder(
-            (ThisBuild / baseDirectory).value / "bindings" / "openssl-amalgam.h",
-            "openssl"
-          )
+        Binding(
+          (ThisBuild / baseDirectory).value / "bindings" / "openssl-amalgam.h",
+          "openssl"
+        )
           .withCImports(List("openssl/sha.h", "openssl/evp.h"))
           .addClangFlag("-I" + vcpkgConfigurator.value.includes("openssl"))
           .addClangFlag("-fsigned-char")
-          .build
       ),
       bindgenMode := BindgenMode.Manual(
         scalaDir = sourceDirectory.value / "main" / "scalanative" / "generated",
@@ -186,7 +181,7 @@ lazy val client =
     .defaultAxes(Axes.native*)
     .nativePlatform(Seq(Versions.Scala))
     .dependsOn(shared)
-    .enablePlugins(VcpkgNativePlugin, BindgenPlugin)
+    .enablePlugins(VcpkgNativePlugin)
     .settings(environmentConfiguration)
     .settings(
       moduleName := "twotm8-client",
@@ -197,20 +192,7 @@ lazy val client =
       ),
       vcpkgNativeConfig ~= { _.addRenamedLibrary("curl", "libcurl") },
       libraryDependencies ++= Seq(
-        "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.Tapir
-      ),
-      bindgenBindings +=
-        Binding
-          .builder(
-            vcpkgConfigurator.value.includes("curl") / "curl" / "curl.h",
-            "curl"
-          )
-          .addCImport("curl/curl.h")
-          .withNoLocation(true)
-          .build,
-      bindgenMode := BindgenMode.Manual(
-        sourceDirectory.value / "main" / "scala" / "generated",
-        (Compile / resourceDirectory).value / "scala-native"
+        "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client4" % Versions.Tapir
       ),
       nativeConfig ~= (_.withIncrementalCompilation(true)),
       publishing
@@ -244,35 +226,35 @@ lazy val Axes = new {
 }
 
 val Versions = new {
-  val Scala = "3.3.1"
+  val Scala = "3.9.0"
 
-  val SNUnit = "0.7.2"
+  val SNUnit = "0.13.0"
 
-  val Tapir = "1.8.5"
+  val Tapir = "1.14.0"
 
-  val upickle = "3.1.3"
+  val upickle = "4.4.3"
 
-  val scribe = "3.12.2"
+  val scribe = "3.19.0"
 
-  val Laminar = "16.0.0"
+  val Laminar = "17.2.1"
 
-  val scalajsDom = "2.6.0"
+  val scalajsDom = "2.8.1"
 
-  val waypoint = "7.0.0"
+  val waypoint = "9.0.0"
 
   val scalacss = "1.0.0"
 
-  val Roach = "0.0.6"
+  val Roach = "0.1.0"
 
   val sttpRetry = "0.3.6"
 
-  val scalaNativeCrypto = "0.0.4"
+  val scalaNativeCrypto = "0.4.0"
 
-  val weaver = "0.8.3"
+  val weaver = "0.13.0"
 
-  val Http4s = "0.23.23"
+  val Http4s = "0.23.38"
 
-  val jwt = "9.4.4"
+  val jwt = "11.0.4"
 
   val macroTaskExecutor = "1.1.1"
 }
@@ -292,7 +274,8 @@ buildApp := {
 
 val buildBackend = taskKey[Unit]("")
 buildBackend := {
-  val target = (app.native(Versions.Scala) / Compile / nativeLink).value
+  // The executable embeds unitd and starts it with the configuration in app/src/main/scala/unitConfig.scala
+  val target = (app.native(Versions.Scala) / snunitBundle).value
 
   val destination = (ThisBuild / baseDirectory).value / "build" / "twotm8"
 
@@ -310,111 +293,6 @@ buildBackend := {
     /* process.Process(s"${sudo}chown unit ${destination}").!! */
     /* process.Process(s"${sudo}chgrp unit ${destination}").!! */
   }
-}
-
-def unitConfig(buildPath: File) =
-  s"""
-{
-  "listeners": {
-    "*:8080": {
-      "pass": "routes"
-    }
-  },
-  "routes": [
-    {
-      "match": {
-        "uri": "/api/*"
-      },
-      "action": {
-        "pass": "applications/app"
-      }
-    },
-    {
-      "match": {
-        "uri": "~^((/(.*)\\\\.(js|css|html))|/)$$"
-      },
-      "action": {
-        "share": "${buildPath}$$uri"
-      }
-    },
-    {
-      "action": {
-        "share": "${buildPath / "index.html"}"
-      }
-    }
-  ],
-  "applications": {
-    "app": {
-      "processes": {
-        "max": 50,
-        "spare": 2,
-        "idle_timeout": 180
-      },
-      "type": "external",
-      "executable": "${buildPath / "twotm8"}",
-      ${sys.env
-      .get("CI")
-      .map { _ =>
-        """
-        "user": "runner",
-        "group": "docker",
-        """
-      }
-      .getOrElse("")}
-      "environment": {
-        "JWT_SECRET": "secret"
-      },
-      "limits": {
-        "timeout": 1,
-        "requests": 1000
-      }
-    }
-  }
-}
-
-"""
-
-lazy val deployLocally = taskKey[Unit]("")
-deployLocally := {
-  locally { buildApp.value }
-  locally { updateUnitConfiguration.value }
-}
-
-lazy val updateUnitConfiguration = taskKey[Unit]("")
-
-updateUnitConfiguration := {
-  sLog.value.info(buildBackend.value.toString)
-
-  val configJson = writeConfig.value
-
-  val sudo = if (sys.env.contains("USE_SUDO")) "sudo " else ""
-
-  val cmd_create =
-    s"${sudo}unitc /config"
-  val cmd =
-    s"${sudo}unitc /control/applications/app/restart"
-
-  val create_result = process.Process(cmd_create).#<(configJson).!!
-  val reload_result = process.Process(cmd).!!
-
-  assert(
-    create_result.contains("Reconfiguration done"),
-    s"Unit reconfiguration didn't succeed, returning `$create_result`"
-  )
-  assert(
-    reload_result.contains("success"),
-    s"Unit reload didn't succeed, returning `$reload_result`"
-  )
-}
-
-lazy val writeConfig = taskKey[File]("")
-writeConfig := {
-  val buildPath = (ThisBuild / baseDirectory).value / "build"
-  val path = buildPath / "config.json"
-
-  IO.write(path, unitConfig(buildPath))
-
-  path
 }
 
 lazy val frontendFile = taskKey[File]("")

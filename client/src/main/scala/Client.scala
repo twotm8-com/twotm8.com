@@ -3,9 +3,10 @@ package twotm8.client
 import twotm8.endpoints
 import twotm8.*, api.*
 
-import sttp.tapir.client.sttp.SttpClientInterpreter
+import sttp.tapir.client.sttp4.SttpClientInterpreter
 import sttp.model.Uri
-import sttp.client3.SttpBackend
+import sttp.client4.SyncBackend
+import sttp.client4.curl.CurlBackend
 import scala.util.control.NonFatal
 
 trait Client:
@@ -29,7 +30,7 @@ object Client:
     )
 
   private class ClientImpl(
-      backend: SttpBackend[sttp.client3.Identity, Any],
+      backend: SyncBackend,
       interp: SttpClientInterpreter,
       base: Uri
   ) extends Client:

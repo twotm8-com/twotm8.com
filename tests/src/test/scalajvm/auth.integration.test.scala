@@ -106,7 +106,7 @@ class Auth(url: Option[String] = None) extends BaseTest(url) with Fragments:
             api.Payload.Login(nickname, password)
           )
         yield expect(
-          result == Left(ErrorInfo.BadRequest("Invalid credentials"))
+          result == Left(ErrorInfo.InvalidCredentials())
         )
       }
 
@@ -126,7 +126,7 @@ class Auth(url: Option[String] = None) extends BaseTest(url) with Fragments:
                 api.Payload.Login(nickname, wrongPassword)
               )
         yield expect(
-          result == Left(ErrorInfo.BadRequest("Invalid credentials"))
+          result == Left(ErrorInfo.InvalidCredentials())
         )
       }
   }
